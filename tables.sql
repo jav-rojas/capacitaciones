@@ -1,63 +1,102 @@
+-- Selección de db a utilizar
 USE capacitaciones;
 
-DROP TABLE users_info;
-DROP TABLE users_login;
+-- Borramos tablas 
+DROP TABLE UsernameTraining;
+DROP TABLE Username;
+DROP TABLE TrainingQuestion;
+DROP TABLE TrainingVideo;
+DROP TABLE Training;
 
-CREATE TABLE users_login (
-    username varchar(16) NOT NULL PRIMARY KEY,
-    password varchar(16) NOT NULL
-) ENGINE = InnoDB;
+-- Creación de tables utilizadas en Web de Capacitaciones
 
-CREATE TABLE users_info (
-	username varchar(16) NOT NULL,
-    nombre varchar(35),
-    apellido varchar(35),
-    email varchar(255),
-    creation_date datetime,
-    last_access_date datetime,
-    FOREIGN KEY (username) REFERENCES users_login(username) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB;
+-- ************************************** `Username`
 
-INSERT INTO users_login VALUES ("admin","Microdatos2020");
-INSERT INTO users_info VALUES ("admin","Javier","Rojas","jrojasc@fen.uchile.cl",now()- INTERVAL 3 HOUR,now()- INTERVAL 3 HOUR);
+CREATE TABLE `Username`
+(
+ `id`         integer NOT NULL AUTO_INCREMENT ,
+ `username`   varchar(45) NOT NULL ,
+ `password`   varchar(16) NOT NULL ,
+ `first_name` varchar(100) NOT NULL ,
+ `last_name`  varchar(100) NOT NULL ,
+ `email`      varchar(255) NOT NULL ,
+ `created_at` datetime NOT NULL ,
+ `updated_at` datetime NOT NULL ,
 
-CREATE TABLE capacitaciones (
-  id_cap varchar(15) NOT NULL PRIMARY KEY,
-  cap_name varchar(50),
-  title varchar(100),
-  text_1 text,
-  text_2 text,
-  text_3 text,
-  cap_created_time datetime,
-  cap_modified_last datetime
-) ENGINE = InnoDB;
+PRIMARY KEY (`id`)
+) ENGINE=INNODB;
 
-CREATE TABLE capacitaciones_videos (
-  id_cap varchar(15) NOT NULL,
-  id_video tinyint(127) NOT NULL,
-  titulo_video text,
-  link text,
-  text_1_video text,
-  text_2_video text,
-  vid_created_time datetime,
-  vid_modified_last datetime,
-  PRIMARY KEY(id_cap, id_video),
-  FOREIGN KEY (id_cap) REFERENCES capacitaciones(id_cap) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB;
 
-CREATE TABLE capacitaciones_cuestionario (
-  id_cap varchar(15) NOT NULL,
-  id_video tinyint(127) NOT NULL,
-  id_pregunta tinyint(127) NOT NULL,
-  tipo_pregunta text,
-  titulo_pregunta text,
-  opcion_1 text,
-  opcion_2 text,
-  opcion_3 text,
-  cuest_created_at datetime,
-  cuest_modified_last datetime,
-  PRIMARY KEY(id_cap, id_video, id_pregunta),
-  FOREIGN KEY (id_cap, id_video) REFERENCES capacitaciones_videos(id_cap, id_video) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB;
+-- ************************************** `Training`
 
-INSERT INTO capacitaciones (id_cap, cap_name) VALUES ("default","-- Seleccione un proyecto --")
+CREATE TABLE `Training`
+(
+ `id`         integer NOT NULL AUTO_INCREMENT ,
+ `name`       varchar(100) NOT NULL ,
+ `title`      text NOT NULL ,
+ `text1`      text NULL ,
+ `text2`      text NULL ,
+ `text3`      text NULL ,
+ `created_at` datetime NOT NULL ,
+ `updated_at` datetime NOT NULL ,
+
+PRIMARY KEY (`id`)
+) ENGINE=INNODB;
+
+-- ************************************** `UsernameTraining`
+
+CREATE TABLE `UsernameTraining`
+(
+ `username_id` integer NOT NULL ,
+ `training_id` integer NOT NULL ,
+
+PRIMARY KEY (`username_id`, `training_id`),
+KEY `fkIdx_79` (`username_id`),
+CONSTRAINT `FK_79` FOREIGN KEY `fkIdx_79` (`username_id`) REFERENCES `Username` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+KEY `fkIdx_85` (`training_id`),
+CONSTRAINT `FK_85` FOREIGN KEY `fkIdx_85` (`training_id`) REFERENCES `Training` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=INNODB;
+
+-- ************************************** `TrainingVideo`
+
+CREATE TABLE `TrainingVideo`
+(
+ `id`         integer NOT NULL AUTO_INCREMENT ,
+ `title`      text NOT NULL ,
+ `link`       text NOT NULL ,
+ `text1`    text NULL ,
+ `text2`    text NULL ,
+ `created_at` datetime NOT NULL ,
+ `updated_at` datetime NOT NULL ,
+ `traning_id` integer NOT NULL ,
+
+PRIMARY KEY (`id`, `traning_id`),
+KEY `fkIdx_93` (`traning_id`),
+CONSTRAINT `FK_93` FOREIGN KEY `fkIdx_93` (`traning_id`) REFERENCES `Training` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=INNODB;
+
+-- ************************************** `TrainingQuestion`
+
+CREATE TABLE `TrainingQuestion`
+(
+ `id`               integer NOT NULL AUTO_INCREMENT ,
+ `traning_id`       integer NOT NULL ,
+ `trainingvideo_id` integer NOT NULL ,
+ `type`             text NOT NULL ,
+ `title`            text NOT NULL ,
+ `choice1`          text NULL ,
+ `choice2`          text NULL ,
+ `choice3`          text NULL ,
+ `choice4`          text NULL ,
+ `created_at`       datetime NOT NULL ,
+ `updated_at`       datetime NOT NULL ,
+
+PRIMARY KEY (`id`, `traning_id`, `trainingvideo_id`),
+KEY `fkIdx_68` (`trainingvideo_id`, `traning_id`),
+CONSTRAINT `FK_68` FOREIGN KEY `fkIdx_68` (`trainingvideo_id`, `traning_id`) REFERENCES `TrainingVideo` (`id`, `traning_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=INNODB;
+
+-- Ingresamos valores iniciales
+
+INSERT INTO Username (username,password,first_name,last_name,email,created_at,updated_at) VALUES ("admin","Microdatos2020","Javier","Rojas","jrojasc@fen.uchile.cl",now()- INTERVAL 3 HOUR,now()- INTERVAL 3 HOUR);
+INSERT INTO Training (name,title,created_at,updated_at) VALUES ("default","-- Seleccione un proyecto --",now()- INTERVAL 3 HOUR,now()- INTERVAL 3 HOUR);
