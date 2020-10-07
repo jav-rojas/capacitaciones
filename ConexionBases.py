@@ -43,43 +43,37 @@ class BasesUsuarios(Conexion):
   # Methods
   def add_user_login(self,username,password,created_at):
     self.create_connection()
-    self.c.execute('INSERT INTO users_login (username,password) VALUES ("{}","{}")'.format(username,password))
-    self.c.execute('INSERT INTO users_info (username,creation_date,last_access_date) VALUES ("{}","{}","{}")'.format(username,created_at,created_at))
+    self.c.execute('INSERT INTO Username (username,password,created_at,updated_at) VALUES ("{}","{}","{}","{}")'.format(username,password,created_at,created_at))
     self.commit_close_connection()
 
-  def add_user_info(self,username,new_nombre,new_apellido,new_email,new_last_access_date):
+  def add_user_info(self,username,new_nombre,new_apellido,new_email,new_updated_at):
     self.create_connection()
-    self.c.execute('UPDATE users_info SET nombre = "{}", apellido = "{}", email = "{}", last_access_date = "{}" WHERE username = "{}"'.format(new_nombre,new_apellido,new_email,new_last_access_date, username))
+    self.c.execute('UPDATE Username SET first_name = "{}", last_name = "{}", email = "{}", updated_at = "{}" WHERE username = "{}"'.format(new_nombre,new_apellido,new_email,new_updated_at, username))
     self.commit_close_connection()
 
-  def act_last_access(self,username,last_access_date):
+  def act_last_access(self,username,new_updated_at):
     self.create_connection()
-    self.c.execute('UPDATE users_info SET last_access_date = "{}" WHERE username = "{}"'.format(last_access_date,username))
+    self.c.execute('UPDATE Username SET updated_at = "{}" WHERE username = "{}"'.format(new_updated_at,username))
     self.commit_close_connection()
 
   def login_user(self,username,password):
     # En cada login, recupera solo si el usuario y la contraseña coinciden:
     self.create_connection()
-    self.c.execute('SELECT * FROM users_login WHERE username ="{}" AND password = "{}"'.format(username,password))
+    self.c.execute('SELECT * FROM Username WHERE username = "{}" AND password = "{}"'.format(username,password))
     self.data = self.c.fetchall()
     self.commit_close_connection()
-    # También recupera la fecha de creación y de último acceso:
-    self.create_connection()
-    self.c.execute('SELECT creation_date, last_access_date FROM users_info WHERE username = "{}"'.format(username,password))
-    self.dates = self.c.fetchall()
-    self.commit_close_connection()
-    return self.data, self.dates
+    return self.data
 
   def view_all_users_logininfo(self):
     self.create_connection()
-    self.c.execute('SELECT * FROM users_login')
+    self.c.execute('SELECT username, password FROM Username')
     self.data = self.c.fetchall()
     self.commit_close_connection()
     return self.data
   
   def view_all_users_info(self):
     self.create_connection()
-    self.c.execute('SELECT * FROM users_info')
+    self.c.execute('SELECT username, first_name, last_name, email, created_at, updated_at FROM Username')
     self.data = self.c.fetchall()
     self.commit_close_connection()
     return self.data  
@@ -89,7 +83,7 @@ class BasesCap(Conexion):
   # Methods
   def view_all_cap(self):
     self.create_connection()
-    self.c.execute('SELECT * FROM capacitaciones')
+    self.c.execute('SELECT * FROM Training')
     self.data = self.c.fetchall()
     self.commit_close_connection()
     return self.data
@@ -104,10 +98,10 @@ class BasesCap(Conexion):
         texts[i] = "NULL"
       else:
         texts[i] = '"{}"'.format(texts[i])
-    self.c.execute('INSERT INTO capacitaciones VALUES ("{}","{}","{}",{},{},{},"{}","{}")'.format(new_cap,new_cap_name,new_title,texts[0],texts[1],texts[2],created_at,created_at))
+    self.c.execute('INSERT INTO Training (key_name,name,title,text1,text2,text3,created_at,updated_at) VALUES ("{}","{}","{}",{},{},{},"{}","{}")'.format(new_cap,new_cap_name,new_title,texts[0],texts[1],texts[2],created_at,created_at))
     self.commit_close_connection()
     
-  def add_first_video_info(self,id_cap,id_video,new_title,new_order,new_link,new_text_1,new_text_2,created_at):
+  def add_video(self,id_cap,new_title,new_order,new_link,new_text_1,new_text_2,created_at):
     self.create_connection()
     
     # Si el texto es vacío, debe ser NULL en SQL:
@@ -117,15 +111,15 @@ class BasesCap(Conexion):
         texts[i] = "NULL"
       else:
         texts[i] = '"{}"'.format(texts[i])
-    self.c.execute('INSERT INTO capacitaciones_videos VALUES ("{}","{}","{}","{}","{}",{},{},"{}","{}")'.format(id_cap,id_video,new_title,new_order,new_link,texts[0],texts[1],created_at,created_at))
+    self.c.execute('INSERT INTO TrainingVideo (training_id,title,link,orden,text1,text2,created_at,updated_at) VALUES ("{}","{}","{}","{}",{},{},"{}","{}")'.format(id_cap,new_title,new_link,new_order,texts[0],texts[1],created_at,created_at))
     self.commit_close_connection()
     
   def retrieve_cap_info(self):
     self.create_connection()
-    self.c.execute('SELECT id_cap,cap_name FROM capacitaciones')
+    self.c.execute('SELECT id, name FROM Training WHERE name != "default"')
     self.data = self.c.fetchall()
-    self.options = []
-    self.id_caps = []
+    self.options = ['-- Seleccione una capacitación --']
+    self.id_caps = [1]
     for i in range(0,len(self.data)):
       self.id_caps.append(self.data[i][0]) 
     for i in range(0,len(self.data)):
@@ -135,7 +129,7 @@ class BasesCap(Conexion):
 
   def retrieve_video_info(self,id_cap):
     self.create_connection()
-    self.c.execute('SELECT id_video, titulo_video, link FROM capacitaciones_videos WHERE id_cap = "{}"'.format(id_cap))
+    self.c.execute('SELECT id, title, link FROM TrainingVideo WHERE training_id = "{}"'.format(id_cap))
     self.data = self.c.fetchall()
     self.titulo_video = []
     self.links = []
@@ -148,4 +142,6 @@ class BasesCap(Conexion):
     for i in range(0,len(self.data)):
       self.links.append(self.data[i][2])
     return self.n_videos, self.titulo_video, self.links 
+
+
   

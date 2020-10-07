@@ -6,13 +6,14 @@ from Utilidades import to_HTML
 from ConexionBases import Conexion, BasesUsuarios, BasesCap
 import rerun
 from datetime import datetime    
+import time
 
 def main():
   
   st.beta_set_page_config(page_title="Capacitaciones CMD", page_icon="https://pbs.twimg.com/profile_images/1161359420967784449/Hsgy0Zv2.jpg", layout='centered', initial_sidebar_state='auto')
 
   ### Bloques de sesión ###
-  session_state = EstadoSesion.get(boton_login=False, boton_registro=False, log_state = False, username = "", password = "", key = 0)
+  session_state = EstadoSesion.get(boton_login=False, boton_registro=False, log_state = False, username = "", password = "", key = 0, video_key = 0)
   ### Fin de bloques de sesión ###
 
   username = st.sidebar.text_input("Usuario", key = session_state.key)
@@ -23,8 +24,9 @@ def main():
   boton_login = st.sidebar.button("Login")
   if boton_login or session_state.boton_login:
     session_state.boton_login = True
-    result, dates = BasesUsuarios().login_user(session_state.username,session_state.password)
-    
+    result = BasesUsuarios().login_user(session_state.username,session_state.password)
+    # Mostrar que hora de último acceso solo se actualiza la primera vez que entra
+
     if result and session_state.username != "admin":
       # Botón para cerrar sesión
       cerrar_sesion = st.sidebar.button("Cerrar sesión")
@@ -34,7 +36,8 @@ def main():
         rerun.rerun()   
       
       # Si es primera vez que entra, entonces debe ingresar sus datos antes de continuar
-      if dates[0][0] == dates[0][1]:
+
+      if result[0][6] == result[0][7]:
         st.header("Formulario de datos personales")
         st.markdown(to_HTML().paragraph("Dado que es primera vez que ingresa a la Web de Capacitaciones, es necesario que ingrese sus datos personales para continuar:"), unsafe_allow_html = True)    
         new_nombre = st.text_input("Nombre:", max_chars = 35)
@@ -73,7 +76,10 @@ def main():
         session_state.boton_login = False
         session_state.key += 1
         rerun.rerun()
-      BasesUsuarios().act_last_access(session_state.username,datetime.now())
+      if not session_state.log_state:
+          BasesUsuarios().act_last_access(session_state.username,datetime.now())
+          session_state.log_state = True
+
       st.sidebar.success("Has iniciado sesión con la cuenta de administrador")
       st.title("Administración Web Capacitaciones Centro de Microdatos")
       st.markdown(to_HTML().paragraph("Bienvenido al apartado de administración de la web de capacitaciones del Centro de Microdatos. En este apartado, podrás realizar algunas tareas importantes, como crear nuevos usuarios, y revisar la información de los usuarios actuales. Para ello, por favor selecciona la opción deseada de la lista desplegable.") , unsafe_allow_html = True)
@@ -97,11 +103,11 @@ def main():
           
         if option == "Revisar información de usuarios existentes":
           st.header("Información de usuarios existentes")
-          st.markdown("Estos son los usuarios actuales en la tabla users_login en MySQL")        
+          st.markdown(to_HTML().paragraph("Estos son los usuarios actuales en la tabla Username en MySQL"), unsafe_allow_html = True)    
           login_info = BasesUsuarios().view_all_users_logininfo()
           info1 = pd.DataFrame(login_info,columns=["Username","Password"])
           st.dataframe(info1)
-          st.markdown(to_HTML().paragraph("Esta es la información actual de cada usuario en la tabla users_info en MySQL"), unsafe_allow_html = True)    
+          st.markdown(to_HTML().paragraph("Esta es la información actual de cada usuario en la tabla Username en MySQL"), unsafe_allow_html = True)    
           username_info = BasesUsuarios().view_all_users_info()
           info2 = pd.DataFrame(username_info,columns=["Username","Nombre","Apellido","Email","Fecha de creación","Última fecha de conexión"]) 
           st.dataframe(info2)
@@ -136,9 +142,11 @@ def main():
           vid_option = st.selectbox(
                               'Seleccione un proyecto:',
                               vid_options)
-
+          print(vid_options)
+          print(id_caps)
           for i in range(1,len(vid_options)):
             if vid_option == vid_options[i]:
+              print("vid option == " + str(vid_option))
               # Se conecta a comprobar si hay videos existentes ya
               # Recupera el número de videos para el id de capacitación seleccionado, el título de cada uno, y el link
               n_videos, titulos_videos, links = BasesCap().retrieve_video_info(id_caps[vid_options.index(vid_option)])
@@ -147,14 +155,13 @@ def main():
                 st.markdown(to_HTML().paragraph("Actualmente hay {0} video{1}, cuyo{1} link{1} puede ver a continuación:".format(len(n_videos),'s' if len(n_videos)>1 else '')), unsafe_allow_html = True)
                 for i in range(0,len(links)):
                   print(links)
-                  st.markdown(to_HTML().paragraph("___",[("{}".format(links[i]),"Video {} - {}".format(i+1,titulos_videos[i]))]), unsafe_allow_html = True)                
+                  st.markdown(to_HTML().paragraph("___",[("{}".format(links[i]),"Video {} - {}".format(i+1,titulos_videos[i]))], new_tab=True), unsafe_allow_html = True)                
                 
-                accion_video = st.radio("Seleccione la acción que desea realizar:",('Modificar un video existente','Agregar nuevo video'))
+                accion_video = st.radio("Seleccione la acción que desea realizar:",('Modificar un video existente','Agregar nuevo video'), key = session_state.video_key)
                 if accion_video == 'Modificar un video existente':
                   st.text("Aquí irán opciones")
                 if accion_video == 'Agregar nuevo video':
                   id_cap = id_caps[vid_options.index(vid_option)]
-                  id_video = len(links)
                   titulo_video = st.text_input("Título del video:")
                   orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
                   link = st.text_input("Link del video*")
@@ -164,23 +171,27 @@ def main():
                   st.markdown(to_HTML().paragraph("*Para agregar un video de Youtube, se debe respetar el formato específico requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___", links = [('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/','ingresando a este link')]), unsafe_allow_html = True)
 
                   if st.button("Agregar"):
-                    BasesCap().add_first_video_info(id_cap,id_video,titulo_video,orden_video,link,new_text_1,new_text_2,datetime.now())
-                    st.success("El video ha sido agregado correctamente")                  
+                    BasesCap().add_video(id_cap,titulo_video,orden_video,link,new_text_1,new_text_2,datetime.now())
+                    st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
+                    time.sleep(2)
+                    session_state.video_key += 1
+                    rerun.rerun()
 
               else:
                 id_cap = id_caps[vid_options.index(vid_option)]
-                id_video = 0
                 titulo_video = st.text_input("Título del video:")
-                orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
                 link = st.text_input("Link del video*")
+                orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
                 st.markdown(to_HTML().paragraph("(Opcional) Textos de explicación previo al video de la Capacitación."), unsafe_allow_html = True)
                 new_text_1 = st.text_area("Texto 1")
                 new_text_2 = st.text_area("Texto 2")
                 st.markdown(to_HTML().paragraph("*Para agregar un video de Youtube, se debe respetar el formato específico requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___", links = [('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/','ingresando a este link')]), unsafe_allow_html = True)
                 
                 if st.button("Agregar"):
-                  BasesCap().add_first_video_info(id_cap,id_video,titulo_video,orden_video,link,new_text_1,new_text_2,datetime.now())
-                  st.success("El video ha sido agregado correctamente")   
+                  BasesCap().add_video(id_cap,titulo_video,orden_video,link,new_text_1,new_text_2,datetime.now())
+                  st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
+                  time.sleep(2)
+                  rerun.rerun()
     else:
       if (session_state.password != "" and not result):
         st.sidebar.error('Usuario o contraseña incorrectos. Por favor intente nuevamente.')

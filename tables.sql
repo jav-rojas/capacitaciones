@@ -17,9 +17,9 @@ CREATE TABLE `Username`
  `id`         integer NOT NULL AUTO_INCREMENT ,
  `username`   varchar(45) NOT NULL ,
  `password`   varchar(16) NOT NULL ,
- `first_name` varchar(100) NOT NULL ,
- `last_name`  varchar(100) NOT NULL ,
- `email`      varchar(255) NOT NULL ,
+ `first_name` varchar(100) NULL ,
+ `last_name`  varchar(100) NULL ,
+ `email`      varchar(255) NULL ,
  `created_at` datetime NOT NULL ,
  `updated_at` datetime NOT NULL ,
 
@@ -27,11 +27,15 @@ PRIMARY KEY (`id`)
 ) ENGINE=INNODB;
 
 
+
+-- ************************************** `Training`
+
 -- ************************************** `Training`
 
 CREATE TABLE `Training`
 (
  `id`         integer NOT NULL AUTO_INCREMENT ,
+ `key_name`   varchar(45) NOT NULL ,
  `name`       varchar(100) NOT NULL ,
  `title`      text NOT NULL ,
  `text1`      text NULL ,
@@ -61,18 +65,19 @@ CONSTRAINT `FK_85` FOREIGN KEY `fkIdx_85` (`training_id`) REFERENCES `Training` 
 
 CREATE TABLE `TrainingVideo`
 (
- `id`         integer NOT NULL AUTO_INCREMENT ,
- `title`      text NOT NULL ,
- `link`       text NOT NULL ,
- `text1`    text NULL ,
- `text2`    text NULL ,
- `created_at` datetime NOT NULL ,
- `updated_at` datetime NOT NULL ,
- `traning_id` integer NOT NULL ,
+ `id`          integer NOT NULL AUTO_INCREMENT ,
+ `training_id` integer NOT NULL ,
+ `title`       text NOT NULL ,
+ `link`        text NOT NULL ,
+ `orden`       int NOT NULL ,
+ `text1`       text NULL ,
+ `text2`       text NULL ,
+ `created_at`  datetime NOT NULL ,
+ `updated_at`  datetime NOT NULL ,
 
-PRIMARY KEY (`id`, `traning_id`),
-KEY `fkIdx_93` (`traning_id`),
-CONSTRAINT `FK_93` FOREIGN KEY `fkIdx_93` (`traning_id`) REFERENCES `Training` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+PRIMARY KEY (`id`, `training_id`),
+KEY `fkIdx_93` (`training_id`),
+CONSTRAINT `FK_93` FOREIGN KEY `fkIdx_93` (`training_id`) REFERENCES `Training` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=INNODB;
 
 -- ************************************** `TrainingQuestion`
@@ -80,7 +85,7 @@ CONSTRAINT `FK_93` FOREIGN KEY `fkIdx_93` (`traning_id`) REFERENCES `Training` (
 CREATE TABLE `TrainingQuestion`
 (
  `id`               integer NOT NULL AUTO_INCREMENT ,
- `traning_id`       integer NOT NULL ,
+ `training_id`      integer NOT NULL ,
  `trainingvideo_id` integer NOT NULL ,
  `type`             text NOT NULL ,
  `title`            text NOT NULL ,
@@ -91,10 +96,11 @@ CREATE TABLE `TrainingQuestion`
  `created_at`       datetime NOT NULL ,
  `updated_at`       datetime NOT NULL ,
 
-PRIMARY KEY (`id`, `traning_id`, `trainingvideo_id`),
-KEY `fkIdx_68` (`trainingvideo_id`, `traning_id`),
-CONSTRAINT `FK_68` FOREIGN KEY `fkIdx_68` (`trainingvideo_id`, `traning_id`) REFERENCES `TrainingVideo` (`id`, `traning_id`) ON DELETE CASCADE ON UPDATE CASCADE
+PRIMARY KEY (`id`, `training_id`, `trainingvideo_id`),
+KEY `fkIdx_68` (`trainingvideo_id`, `training_id`),
+CONSTRAINT `FK_68` FOREIGN KEY `fkIdx_68` (`trainingvideo_id`, `training_id`) REFERENCES `TrainingVideo` (`id`, `training_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=INNODB;
+
 
 -- Ingresamos valores iniciales
 
