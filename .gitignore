@@ -4,7 +4,10 @@
 /web_capacitaciones_env
 
 # cache
-/__pycache__
+__pycache__
 
 ## Visual Studio Code ##
 .vscode
+
+## Jupyter ##
+.ipynb_checkpoints
