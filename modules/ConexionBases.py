@@ -13,7 +13,7 @@ class Conexion():
     # database = "capacitaciones"
 
     # Constructor
-    def __init__(self, host="162.243.165.69", user="capacitaciones", passwd="Microdatos2020.", database="capacitaciones"):
+    def __init__(self, host="localhost", user="capacitaciones", passwd="Microdatos2020.", database="capacitaciones"):
         self.host = host
         self.user = user
         self.passwd = passwd
