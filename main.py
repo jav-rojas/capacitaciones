@@ -1,8 +1,11 @@
 import base64
+import csv
 import mysql.connector
+import numpy as np
 import pandas as pd
 import streamlit as st
 import time
+from io import StringIO
 from os import path
 from datetime import datetime
 from modules import EstadoSesion
@@ -28,7 +31,9 @@ def main():
         username="",
         password="",
         key=0,
-        video_key=0)
+        video_key=0,
+        cap_key=0,
+        user_option=0)
     # Fin de bloques de sesión #
 
     username = st.sidebar.text_input("Usuario", key=session_state.key)
@@ -113,7 +118,7 @@ def main():
             if admin_options == "Usuarios":
                 option = st.selectbox(
                     'Seleccione una acción',
-                    ('-- Acción --', 'Crear nuevo usuario', 'Cargar usuarios por lote', 'Revisar información de usuarios existentes'))
+                    ('-- Acción --', 'Crear nuevo usuario', 'Cargar usuarios por lote', 'Revisar información de usuarios existentes'), index=session_state.user_option)
 
                 if option == "Crear nuevo usuario":
                     st.header("Crear nueva cuenta")
@@ -136,14 +141,17 @@ def main():
 
                 if option == "Cargar usuarios por lote":
                     st.header("Carga de usuarios por lote")
-                    data = open(path.join('files', 'users_schema.csv'), "r", encoding='utf-8-sig').read()
-                    b64 = base64.b64encode(data.encode()).decode()
-                    href = f'<a href="data:file/csv;base64,{b64}" download="users_schema.csv">la siguiente plantilla</a>'
+
                     st.markdown(to_HTML().paragraph("La carga de usuarios por lote permite la utilización de un archivo separado por comas (.csv) para crear "
                                                     "usuarios automáticamente dentro de la plataforma. Además, es posible asociarlos inmediatamente a una "
                                                     "capacitación, con el único requisito de que esta ya esté creada."),
                                 unsafe_allow_html=True)
                     st.markdown(to_HTML().paragraph("Para cargar usuarios masivamente, siga los siguientes pasos:"), unsafe_allow_html=True)
+
+                    # Genera archivo para descarga
+                    data = open(path.join('files', 'users_schema.csv'), "r", encoding='utf-8-sig').read()
+                    b64 = base64.b64encode(data.encode()).decode()
+                    href = f'<a href="data:file/csv;base64,{b64}" download="users_schema.csv">la siguiente plantilla</a>'
 
                     # Lista de capacitaciones disponibles
                     elements = BasesCap().retrieve_cap_info(key=True, elements=True)
@@ -157,17 +165,113 @@ def main():
                                 "Cargue el archivo (arrastrando o utilizando el cuadro de diálogo más abajo)",
                                 "Compruebe que el archivo se ha cargado correctamente. Debería poder visualizar el archivo, y comprobar que las columnas son las deseadas.",
                                 "Presione el botón 'Cargar'.",
-                                "Compruebe que los usuarios se han cargado correctamente seleccionando Usuarios > Revisar información de usuarios existentes"], ordered=True),
+                                "Si no es redirigido automáticamente, compruebe que los usuarios se han cargado correctamente seleccionando "
+                                "Usuarios > Revisar información de usuarios existentes"], ordered=True),
                                 unsafe_allow_html=True)
-                    uploaded_file = st.file_uploader('Seleccione un archivo CSV')
+
+                    # Genera widget para subir archivo
+                    uploaded_file = st.file_uploader('Seleccione un archivo CSV', type='csv')
+
                     if uploaded_file is not None:
-                        data = pd.read_csv(uploaded_file, delimiter=';')
-                        st.write(data)
+                        # Lee contenido del archivo, lo almacanea como StringIO. Genera un segundo objeto para ser utilizado posteriormente (una vez utilizado, desaparece)
+                        uploaded_file_df = StringIO(uploaded_file.read())
+                        uploaded_file_data = StringIO(uploaded_file_df.getvalue())
+
+                    if uploaded_file_df is not None:
+                        df = pd.read_csv(uploaded_file_df, delimiter=';')
+
+                        # Reemplaza valores nan por '' para mostrar en página
+                        df.loc[df['usuario'].isna(), 'usuario'] = ''
+                        df.loc[df['password'].isna(), 'password'] = ''
+                        df.loc[df['nombre'].isna(), 'nombre'] = ''
+                        df.loc[df['apellido'].isna(), 'apellido'] = ''
+                        df.loc[df['email'].isna(), 'email'] = ''
+
+                        # Variables para identificar columna _cap
+                        has_cap = False  # True si tiene columna _cap
+                        check_cap = pd.DataFrame  # DF utilizado si tiene columna _cap
+
+                        if '_cap' in df.columns:
+                            df.loc[df['_cap'].isna(), '_cap'] = ''
+                            has_cap = True
+
+                        st.write(df)
+
+                        # Chequeos sobre archivo .csv (integrity checks antes de SQL)
+
+                        # Muestra error si es que hay valores vacíos en columnas 'usuario' o 'password'
+                        check_usuario = df.loc[df['usuario'] == '', :]
+                        check_password = df.loc[df['password'] == '', :]
+                        if not check_usuario.empty:
+                            st.error("Hay valores vacíos en la columna 'usuario'")
+                        if not check_password.empty:
+                            st.error("Hay valores vacíos en la columna 'password'")
+
+                        # Muestra error si es que tiene la columna _cap, y hay valores vacíos en ella
+                        if has_cap:
+                            check_cap = df.loc[df['_cap'] == '', :]
+                        if has_cap and not check_cap.empty:
+                            st.error("Hay valores vacíos en la columna '_cap'")
+
+                        # Muestra error si es que tiene la columna _cap, pero ese key_name no existe en la base actual
+                        if has_cap:
+                            key_name, name = BasesCap().retrieve_cap_info(key=True)
+                            csv_key_names = set(df['_cap'].values.tolist())
+                            for key in csv_key_names:
+                                if key not in key_name:
+                                    st.error("La capacitación {} no existe o no ha sido creada.".format(key))
+                                else:
+                                    pass
+
+                        # Muestra advertencia si es que hay combinaciones usuario-capacitación que ya existen
+                        if has_cap:
+                            
+
+                        if check_usuario.empty and check_password.empty and ((has_cap and check_cap.empty) or not has_cap):
+                            if st.button("Cargar"):
+                                csv_reader = csv.reader(uploaded_file_data, delimiter=';')
+                                add_usuario = []  # Lista con nombre de usuarios
+                                add_password = []  # Lista con contraseña de usuarios
+                                add_nombre = []  # Lista con nombres de usuarios
+                                add_apellido = []  # Lista con apellidos de usuarios
+                                add_email = []  # Lista con emails de usuarios
+                                if '_cap' in header:
+                                    add_cap = []  # Lista con capacitación a asociar
+                                    check_cap = next(csv_reader)
+                                    key_name, name = BasesCap().retrieve_cap_info(key=True)
+                                    if check_cap[5] in key_name:
+                                        for row in csv_reader:
+                                            add_usuario.append(row[0])
+                                            add_password.append(row[1])
+                                            add_nombre.append(row[2])
+                                            add_apellido.append(row[3])
+                                            add_email.append(row[4])
+                                            add_cap.append(row[5])
+                                        if '' not in add_usuario and '' not in add_password and '' not in add_cap:
+                                            print(add_usuario)
+                                            st.text('Hay un vacío en add_nombre')
+                                        else:
+                                            st.error(
+                                                "Compruebe que no existen valores vacíos en las columnas usuario, password o _cap"
+                                            )
+                                    else:
+                                        st.warning(
+                                            "No se encontró ninguna capacitación disponible con el nombre {}. Por favor compruebe que el contenido de la columna "
+                                            "_cap coincida con el nombre clave de las capacitaciones actualmente disponibles.".format(check_cap[5])
+                                        )
+                                else:
+                                    for row in csv_reader:
+                                        add_usuario.append(row[0])
+                                        add_password.append(row[1])
+                                        add_nombre.append(row[2])
+                                        add_apellido.append(row[3])
+                                        add_email.append(row[4])
+                                st.success("Los usuarios han sido cargados correctamente")
 
             if admin_options == "Capacitaciones":
                 option = st.selectbox(
                     'Seleccione una acción:',
-                    ('-- Acción --', 'Crear nueva Capacitación', 'Agregar o modificar video de Capacitación'))
+                    ('-- Acción --', 'Crear nueva Capacitación', 'Agregar o modificar video de Capacitación'), key=session_state.cap_key)
 
                 if option == "Crear nueva Capacitación":
                     st.header("Crear nueva Capacitación")
@@ -185,7 +289,10 @@ def main():
 
                     if st.button("Crear"):
                         BasesCap().add_cap_info(new_cap, new_cap_name, new_title, new_text_1, new_text_2, new_text_3, datetime.now())
-                        st.success("La capacitación ha sido creada correctamente")
+                        st.success("La capacitación ha sido creada correctamente. Espere mientras es redirigido.")
+                        time.sleep(1.5)
+                        session_state.cap_key += 1
+                        rerun.rerun()
 
                 if option == "Agregar o modificar video de Capacitación":
                     st.header("Agregar o modificar video de Capacitación")
@@ -217,32 +324,32 @@ def main():
                                             ("{}".format(links[i]), "Video {} - {}".format(i + 1, titulos_videos[i]))], new_tab=True),
                                         unsafe_allow_html=True)
 
-                            accion_video = st.radio(
-                                "Seleccione la acción que desea realizar:",
-                                ('Modificar un video existente', 'Agregar nuevo video'),
-                                key=session_state.video_key)
+                                accion_video = st.radio(
+                                    "Seleccione la acción que desea realizar:",
+                                    ('Modificar un video existente', 'Agregar nuevo video'),
+                                    key=session_state.video_key)
 
-                            if accion_video == 'Modificar un video existente':
-                                st.text("Aquí irán opciones")
-                            if accion_video == 'Agregar nuevo video':
-                                id_cap = id_caps[vid_options.index(vid_option)]
-                                titulo_video = st.text_input("Título del video:")
-                                orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
-                                link = st.text_input("Link del video*")
-                                st.markdown(to_HTML().paragraph("(Opcional) Textos de explicación previo al video de la Capacitación."), unsafe_allow_html=True)
-                                new_text_1 = st.text_area("Texto 1")
-                                new_text_2 = st.text_area("Texto 2")
-                                st.markdown(to_HTML().paragraph("*Para agregar un video de Youtube, se debe respetar el formato específico "
-                                                                "requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___",
-                                            links=[('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/', 'ingresando a este link')]),
-                                            unsafe_allow_html=True)
+                                if accion_video == 'Modificar un video existente':
+                                    st.text("Aquí irán opciones")
+                                if accion_video == 'Agregar nuevo video':
+                                    id_cap = id_caps[vid_options.index(vid_option)]
+                                    titulo_video = st.text_input("Título del video:")
+                                    orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
+                                    link = st.text_input("Link del video*")
+                                    st.markdown(to_HTML().paragraph("(Opcional) Textos de explicación previo al video de la Capacitación."), unsafe_allow_html=True)
+                                    new_text_1 = st.text_area("Texto 1")
+                                    new_text_2 = st.text_area("Texto 2")
+                                    st.markdown(to_HTML().paragraph("*Para agregar un video de Youtube, se debe respetar el formato específico "
+                                                                    "requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___",
+                                                links=[('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/', 'ingresando a este link')]),
+                                                unsafe_allow_html=True)
 
-                                if st.button("Agregar"):
-                                    BasesCap().add_video(id_cap, titulo_video, orden_video, link, new_text_1, new_text_2, datetime.now())
-                                    st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
-                                    time.sleep(2)
-                                    session_state.video_key += 1
-                                    rerun.rerun()
+                                    if st.button("Agregar"):
+                                        BasesCap().add_video(id_cap, titulo_video, orden_video, link, new_text_1, new_text_2, datetime.now())
+                                        st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
+                                        time.sleep(2)
+                                        session_state.video_key += 1
+                                        rerun.rerun()
 
                             else:
                                 id_cap = id_caps[vid_options.index(vid_option)]

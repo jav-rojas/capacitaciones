@@ -148,19 +148,6 @@ class BasesCap(Conexion):
             else:
                 return self.key_name, self.name
 
-    def retrieve_cap_names(self):
-        self.create_connection()
-        self.c.execute('SELECT key_name, name FROM Training WHERE name != "default"')
-        self.data = self.c.fetchall()
-        self.options = ['-- Seleccione una capacitación --']
-        self.id_caps = [1]
-        for i in range(0, len(self.data)):
-            self.id_caps.append(self.data[i][0])
-        for i in range(0, len(self.data)):
-            self.options.append(self.data[i][1])
-        self.commit_close_connection()
-        return self.options, self.id_caps
-
     def retrieve_video_info(self, id_cap):
         self.create_connection()
         self.c.execute('SELECT id, title, link FROM TrainingVideo WHERE training_id = "{}"'.format(id_cap))
@@ -168,7 +155,6 @@ class BasesCap(Conexion):
         self.titulo_video = []
         self.links = []
         self.n_videos = []
-        print(self.data)
         for i in range(0, len(self.data)):
             self.n_videos.append(self.data[i][0])
         for i in range(0, len(self.data)):
@@ -176,3 +162,19 @@ class BasesCap(Conexion):
         for i in range(0, len(self.data)):
             self.links.append(self.data[i][2])
         return self.n_videos, self.titulo_video, self.links
+
+
+class BasesUserCap(Conexion):
+
+    # Methods
+    def retrieve_usertraining_info(self):
+        self.create_connection()
+        self.c.execute('SELECT username_id, training_id')
+        self.data = self.c.fetchall()
+        self.username = []
+        self.training = []
+        for i in range(0, len(self.data)):
+            self.username.append(self.data[i][0])
+        for i in range(0, len(self.data)):
+            self.training.append(self.data[i][0])
+        return self.username, self.training
