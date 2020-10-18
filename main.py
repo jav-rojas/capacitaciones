@@ -11,7 +11,7 @@ from datetime import datetime
 from modules import EstadoSesion
 from modules import rerun
 from modules.Utilidades import to_HTML
-from modules.ConexionBases import Conexion, BasesUsuarios, BasesCap
+from modules.ConexionBases import Conexion, BasesUsuarios, BasesCap, BasesUserCap
 
 
 def main():
@@ -225,7 +225,7 @@ def main():
 
                         # Muestra advertencia si es que hay combinaciones usuario-capacitación que ya existen
                         if has_cap:
-                            
+                            username_training = BasesUserCap.retrieve_usertraining_info()
 
                         if check_usuario.empty and check_password.empty and ((has_cap and check_cap.empty) or not has_cap):
                             if st.button("Cargar"):
