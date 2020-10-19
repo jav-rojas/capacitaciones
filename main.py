@@ -12,6 +12,7 @@ from modules import EstadoSesion
 from modules import rerun
 from modules.Utilidades import to_HTML
 from modules.ConexionBases import Conexion, BasesUsuarios, BasesCap, BasesUserCap
+from modules.batch_upload import IntegrityErrors, Batch
 
 
 def main():
@@ -158,8 +159,9 @@ def main():
                     caps = to_HTML().list(elements=elements)
 
                     st.markdown(to_HTML().list(elements=[
-                                "Descargue {}. Puede editarla utilizando Excel.".format(href),
-                                "Rellene las columnas deseadas. Las columnas <em>usuario</em> y <em>password</em> no pueden tener valores vacíos.",
+                                "Descargue {}. Puede ser editada con Excel o cualquier editor de texto.".format(href),
+                                "Rellene las columnas deseadas. Si solo está creando usuarios, las columnas <em>usuario</em> y <em>password</em> no pueden tener valores vacíos. "
+                                "Si carga capacitaciones a un usuario ya existente, las columnas <em>password</em>, <em>nombre</em>, <em>apellido</em> y <em>mail</em> serán ignoradas.",
                                 "(Opcional) Para asociar los usuarios a una capacitación específica, agregue una columna con el nombre <em>_cap</em>. "
                                 "El valor de la columna <em>_cap</em> deberá ser uno de los siguientes: {}".format(caps),
                                 "Cargue el archivo (arrastrando o utilizando el cuadro de diálogo más abajo)",
@@ -177,96 +179,89 @@ def main():
                         uploaded_file_df = StringIO(uploaded_file.read())
                         uploaded_file_data = StringIO(uploaded_file_df.getvalue())
 
-                    if uploaded_file_df is not None:
-                        df = pd.read_csv(uploaded_file_df, delimiter=';')
+                        if uploaded_file_df is not None:
+                            df = pd.read_csv(uploaded_file_df, delimiter=';')
 
-                        # Reemplaza valores nan por '' para mostrar en página
-                        df.loc[df['usuario'].isna(), 'usuario'] = ''
-                        df.loc[df['password'].isna(), 'password'] = ''
-                        df.loc[df['nombre'].isna(), 'nombre'] = ''
-                        df.loc[df['apellido'].isna(), 'apellido'] = ''
-                        df.loc[df['email'].isna(), 'email'] = ''
+                            # Reemplaza valores nan por '' para mostrar en página
+                            df.loc[df['usuario'].isna(), 'usuario'] = ''
+                            df.loc[df['password'].isna(), 'password'] = ''
+                            df.loc[df['nombre'].isna(), 'nombre'] = ''
+                            df.loc[df['apellido'].isna(), 'apellido'] = ''
+                            df.loc[df['email'].isna(), 'email'] = ''
 
-                        # Variables para identificar columna _cap
-                        has_cap = False  # True si tiene columna _cap
-                        check_cap = pd.DataFrame  # DF utilizado si tiene columna _cap
+                            # Variables para identificar columna _cap
+                            has_cap = False  # True si tiene columna _cap
+                            check_cap = pd.DataFrame  # DF utilizado si tiene columna _cap
 
-                        if '_cap' in df.columns:
-                            df.loc[df['_cap'].isna(), '_cap'] = ''
-                            has_cap = True
+                            if '_cap' in df.columns:
+                                df.loc[df['_cap'].isna(), '_cap'] = ''
+                                has_cap = True
 
-                        st.write(df)
+                            st.write(df)
 
-                        # Chequeos sobre archivo .csv (integrity checks antes de SQL)
+                            # Chequeos sobre archivo .csv (integrity checks antes de SQL)
+                            integrity = IntegrityErrors(has_cap=has_cap, df=df)
 
-                        # Muestra error si es que hay valores vacíos en columnas 'usuario' o 'password'
-                        check_usuario = df.loc[df['usuario'] == '', :]
-                        check_password = df.loc[df['password'] == '', :]
-                        if not check_usuario.empty:
-                            st.error("Hay valores vacíos en la columna 'usuario'")
-                        if not check_password.empty:
-                            st.error("Hay valores vacíos en la columna 'password'")
-
-                        # Muestra error si es que tiene la columna _cap, y hay valores vacíos en ella
-                        if has_cap:
-                            check_cap = df.loc[df['_cap'] == '', :]
-                        if has_cap and not check_cap.empty:
-                            st.error("Hay valores vacíos en la columna '_cap'")
-
-                        # Muestra error si es que tiene la columna _cap, pero ese key_name no existe en la base actual
-                        if has_cap:
-                            key_name, name = BasesCap().retrieve_cap_info(key=True)
-                            csv_key_names = set(df['_cap'].values.tolist())
-                            for key in csv_key_names:
-                                if key not in key_name:
-                                    st.error("La capacitación {} no existe o no ha sido creada.".format(key))
-                                else:
-                                    pass
-
-                        # Muestra advertencia si es que hay combinaciones usuario-capacitación que ya existen
-                        if has_cap:
-                            username_training = BasesUserCap.retrieve_usertraining_info()
-
-                        if check_usuario.empty and check_password.empty and ((has_cap and check_cap.empty) or not has_cap):
-                            if st.button("Cargar"):
-                                csv_reader = csv.reader(uploaded_file_data, delimiter=';')
-                                add_usuario = []  # Lista con nombre de usuarios
-                                add_password = []  # Lista con contraseña de usuarios
-                                add_nombre = []  # Lista con nombres de usuarios
-                                add_apellido = []  # Lista con apellidos de usuarios
-                                add_email = []  # Lista con emails de usuarios
-                                if '_cap' in header:
-                                    add_cap = []  # Lista con capacitación a asociar
-                                    check_cap = next(csv_reader)
-                                    key_name, name = BasesCap().retrieve_cap_info(key=True)
-                                    if check_cap[5] in key_name:
-                                        for row in csv_reader:
-                                            add_usuario.append(row[0])
-                                            add_password.append(row[1])
-                                            add_nombre.append(row[2])
-                                            add_apellido.append(row[3])
-                                            add_email.append(row[4])
-                                            add_cap.append(row[5])
-                                        if '' not in add_usuario and '' not in add_password and '' not in add_cap:
-                                            print(add_usuario)
-                                            st.text('Hay un vacío en add_nombre')
-                                        else:
-                                            st.error(
-                                                "Compruebe que no existen valores vacíos en las columnas usuario, password o _cap"
-                                            )
+                            # Muestra error si es que hay combinaciones que no pueden estar repetidas
+                            repeated = integrity.repeated()
+                            if repeated:
+                                st.subheader("Error: Hay filas con información repetida incompatible ({})".format(len(repeated)))
+                                for i in range(len(repeated)):
+                                    if has_cap:
+                                        st.error("La combinación usuario-capacitación está repetida en el archivo para {}-{}".format(repeated[i][0], repeated[i][1]))
                                     else:
-                                        st.warning(
-                                            "No se encontró ninguna capacitación disponible con el nombre {}. Por favor compruebe que el contenido de la columna "
-                                            "_cap coincida con el nombre clave de las capacitaciones actualmente disponibles.".format(check_cap[5])
-                                        )
-                                else:
-                                    for row in csv_reader:
-                                        add_usuario.append(row[0])
-                                        add_password.append(row[1])
-                                        add_nombre.append(row[2])
-                                        add_apellido.append(row[3])
-                                        add_email.append(row[4])
-                                st.success("Los usuarios han sido cargados correctamente")
+                                        st.error("El usuario {} está repetido en el archivo".format(repeated[i][0]))
+
+                            # Permite mostrar otros errores sí y sólo sí no hay valores repetidos
+                            if not repeated:
+                                # Muestra error si es que no hay columna de capacitación y un usuario ya existe
+                                exists_username = integrity.user_exists()
+                                if exists_username:
+                                    st.subheader("Error: Hay usuarios que ya existen ({})".format(len(exists_username)))
+                                    for i in range(len(exists_username)):
+                                        st.error("El usuario {} ya existe".format(exists_username[i]))
+
+                                # Muestra error si es que hay valores vacíos en columnas 'usuario' o 'password'
+                                check_usuario, check_password = integrity.userpass_empty()
+                                if check_usuario:
+                                    st.subheader("Error: Hay valores vacíos en la columna 'usuario' ({})".format(len(check_usuario)))
+                                if check_password:
+                                    st.subheader("Error: Hay valores vacíos en la columna 'password' ({})".format(len(check_password)))
+                                    for i in range(len(check_password)):
+                                        st.error("El usuario {} no puede tener la columna 'password' en blanco".format(check_password[i]))
+
+                                # Muestra error si es que tiene la columna _cap, y hay valores vacíos en ella
+                                check_cap = integrity.cap_empty()
+                                if check_cap:
+                                    st.subheader("Error: Hay valores vacíos en la columna '_cap' ({})".format(len(check_cap)))
+                                    st.error("No pueden existir valores vacíos en la columna _cap")
+
+                                # Muestra error si es que tiene la columna _cap, pero ese key_name no existe en la base actual
+                                invalid_keynames = integrity.invalid_keyname()
+                                if invalid_keynames:
+                                    st.subheader("Error: Hay capacitaciones en la columna _cap que no existen o no han sido creadas ({})".format(len(invalid_keynames)))
+                                    for i in range(len(invalid_keynames)):
+                                        st.error("La capacitación {} no existe o no ha sido creada".format(invalid_keynames[i]))
+
+                                # Muestra advertencia si es que hay combinaciones usuario-capacitación que ya existen
+                                exists_usertraining = integrity.usertraining_exists()
+                                if exists_usertraining:
+                                    st.subheader("Error: Hay usuarios que ya tienen la capacitación asignada ({})".format(len(exists_usertraining)))
+                                    for i in range(len(exists_usertraining)):
+                                        st.error("El usuario {} ya tiene asociada la capacitación {}".format(exists_usertraining[i][0], exists_usertraining[i][1]))
+
+                                if not check_usuario and not check_password and not check_cap and not invalid_keynames and not exists_usertraining:
+                                    if st.button("Cargar"):
+                                        if has_cap:
+                                            exists, not_exists = Batch(has_cap, df).batch_users()
+                                            if exists:
+                                                exists_cap = list(df.loc[df['usuario'].isin(exists), ['usuario', '_cap']].itertuples(index=False, name=None))
+                                                print(exists_cap)
+                                            if not_exists:
+                                                not_exists_login = list(df.loc[df['usuario'].isin(not_exists), ['usuario', 'password', 'nombre', 'apellido', 'email']].itertuples(index=False, name=None))
+                                                not_exists_cap = list(df.loc[df['usuario'].isin(not_exists), ['usuario', '_cap']].itertuples(index=False, name=None))
+                                                print(not_exists_login)
+                                                print(not_exists_cap)
 
             if admin_options == "Capacitaciones":
                 option = st.selectbox(
