@@ -167,7 +167,6 @@ class BasesCap(Conexion):
 class BasesUserCap(Conexion):
 
     # Methods
-    @classmethod
     def retrieve_usertraining_info(self):
         self.create_connection()
         self.c.execute(
@@ -176,7 +175,7 @@ class BasesUserCap(Conexion):
             'JOIN usernametraining ON username.id = usernametraining.username_id '
             'JOIN training ON usernametraining.training_id = training.id')
         self.data = self.c.fetchall()
-        self.username_training = ()
+        self.username_training = []
         for i in range(0, len(self.data)):
             self.username_training.append((self.data[i][0], self.data[i][1]))
         return self.username_training
