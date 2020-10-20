@@ -50,8 +50,18 @@ class BasesUsuarios(Conexion):
 
     def add_user_info(self, username, new_nombre, new_apellido, new_email, new_updated_at):
         self.create_connection()
-        self.c.execute('UPDATE Username SET first_name = "{}", last_name = "{}", email = "{}", updated_at = "{}" WHERE username = "{}"'.format(new_nombre, new_apellido, new_email, new_updated_at, username))
+        self.c.execute('UPDATE Username SET first_name = {}, last_name = {}, email = {}, updated_at = "{}" WHERE username = "{}"'.format(
+            "'{}'".format(new_nombre) if new_nombre != '' else 'NULL',
+            "'{}'".format(new_apellido) if new_apellido != '' else 'NULL',
+            "'{}'".format(new_email) if new_email != '' else 'NULL',
+            new_updated_at,
+            username))
         self.commit_close_connection()
+
+    def add_batch_users(self, input_tuple=None, created_at=None):
+        for i in range(len(input_tuple)):
+            self.add_user_login(username=input_tuple[i][0], password=input_tuple[i][1], created_at=created_at)
+            self.add_user_info(username=input_tuple[i][0], new_nombre=input_tuple[i][2], new_apellido=input_tuple[i][3], new_email=input_tuple[i][4], new_updated_at=created_at)
 
     def act_last_access(self, username, new_updated_at):
         self.create_connection()
@@ -84,13 +94,6 @@ class BasesUsuarios(Conexion):
 class BasesCap(Conexion):
 
     # Methods
-    def view_all_cap(self):
-        self.create_connection()
-        self.c.execute('SELECT * FROM Training')
-        self.data = self.c.fetchall()
-        self.commit_close_connection()
-        return self.data
-
     def add_cap_info(self, new_cap, new_cap_name, new_title, new_text_1, new_text_2, new_text_3, created_at):
         self.create_connection()
 
@@ -118,6 +121,13 @@ class BasesCap(Conexion):
         self.c.execute('INSERT INTO TrainingVideo (training_id,title,link,orden,text1,text2,created_at,updated_at) '
                        'VALUES ("{}","{}","{}","{}",{},{},"{}","{}")'.format(id_cap, new_title, new_link, new_order, texts[0], texts[1], created_at, created_at))
         self.commit_close_connection()
+
+    def retrieve_all_cap(self):
+        self.create_connection()
+        self.c.execute('SELECT * FROM Training')
+        self.data = self.c.fetchall()
+        self.commit_close_connection()
+        return self.data
 
     def retrieve_cap_info(self, key=False, elements=False):
         self.create_connection()
@@ -167,6 +177,41 @@ class BasesCap(Conexion):
 class BasesUserCap(Conexion):
 
     # Methods
+    def add_usertraining(self, username=None, key_name=None, input_tuple=None, tuples=False):
+        self.create_connection()
+        if tuples:
+            for i in range(len(input_tuple)):
+                self.c.execute(
+                    'INSERT INTO UsernameTraining (username_id, training_id) '
+                    'VALUES ( '
+                    '(SELECT Username.id FROM Username WHERE username = "{}"), '
+                    '(SELECT Training.id FROM Training WHERE key_name = "{}")) '.format(input_tuple[i][0], input_tuple[i][1]))
+            self.commit_close_connection()
+        else:
+            self.c.execute(
+                'INSERT INTO UsernameTraining (username_id, training_id) '
+                'VALUES ( '
+                '(SELECT Username.id FROM Username WHERE username = "{}"), '
+                '(SELECT Training.id FROM Training WHERE key_name = "{}")) '.format(username, key_name))
+            self.commit_close_connection()
+
+    def retrieve_associated_trainings(self, username=None):
+        self.create_connection()
+        self.c.execute(
+            'SELECT training.id, training.key_name, training.name '
+            'FROM UsernameTraining '
+            'JOIN Training ON UsernameTraining.training_id = Training.id '
+            'WHERE username_id = (SELECT id FROM Username WHERE username = "{}")'.format(username))
+        self.data = self.c.fetchall()
+        self.options = ['-- Seleccione una capacitación --']
+        self.id_caps = [1]
+        for i in range(len(self.data)):
+            self.id_caps.append(self.data[i][0])
+        for i in range(len(self.data)):
+            self.options.append(self.data[i][1] + ' - ' + self.data[i][2])
+        self.commit_close_connection()
+        return self.options, self.id_caps
+
     def retrieve_usertraining_info(self):
         self.create_connection()
         self.c.execute(
