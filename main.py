@@ -60,13 +60,14 @@ def main():
 
             if result[0][6] == result[0][7]:
                 st.header("Formulario de datos personales")
-                st.markdown(to_HTML().paragraph("Dado que es primera vez que ingresa a la Web de Capacitaciones, es necesario que ingrese sus "
-                                                "datos personales para continuar:"),
+                st.markdown(to_HTML().paragraph("Dado que es primera vez que ingresa a la Web de Capacitaciones, es necesario que confirme sus "
+                                                "información personal antes de continuar. Si ya existe algún valor asignado, puede modificarlo "
+                                                "antes de enviar los datos al sistema."),
                             unsafe_allow_html=True)
 
-                new_nombre = st.text_input("Nombre:", max_chars=35)
-                new_apellido = st.text_input("Apellido:", max_chars=35)
-                new_email = st.text_input("e-mail:", max_chars=255)
+                new_nombre = st.text_input("Nombre:", value='{}'.format(result[0][3] if result[0][3] is not None else ''), max_chars=35)
+                new_apellido = st.text_input("Apellido:", value='{}'.format(result[0][3] if result[0][4] is not None else ''), max_chars=35)
+                new_email = st.text_input("e-mail:", value='{}'.format(result[0][3] if result[0][5] is not None else ''), max_chars=255)
                 new_last_access_date = datetime.now()
 
                 if st.button("Enviar"):
@@ -86,13 +87,12 @@ def main():
                     session_state.log_state = True
 
                 # Aquí debería acceder a SQL a buscar nombres de proyectos para capacitación
-                opciones_cap_selec = ['-- Seleccione un proyecto --', 'TS4 - Termómetro Social 4', 'EOD - Encuesta de Ocupación y Desocupación']
-                cap_selec = st.sidebar.selectbox("Seleccione un proyecto:", opciones_cap_selec, index=0)
-
-                if cap_selec == 'TS4 - Termómetro Social 4':
-                    cap_info = BasesCap().view_all_cap()
-                    cap1 = pd.DataFrame(cap_info, columns=["id_cap", "cap_name", "title", "text_1", "text_2", "text_3"])
-                    st.dataframe(cap1)
+                training_options, id_caps = BasesUserCap().retrieve_associated_trainings(username=session_state.username)
+                training_option = st.sidebar.selectbox('Seleccione un proyecto:', training_options)
+                for i in range(1, len(training_options)):
+                    if training_option == training_options[i]:
+                        st.text(training_option)
+                        st.text(id_caps[training_options.index(training_option)])
 
         elif result and session_state.username == "admin":
             cerrar_sesion = st.sidebar.button("Cerrar sesión")
@@ -239,14 +239,14 @@ def main():
                                 # Muestra error si es que tiene la columna _cap, pero ese key_name no existe en la base actual
                                 invalid_keynames = integrity.invalid_keyname()
                                 if invalid_keynames:
-                                    st.subheader("Error: Hay capacitaciones en la columna _cap que no existen o no han sido creadas ({})".format(len(invalid_keynames)))
+                                    st.subheader("Error: Hay capacitaciones en la columna '_cap' que no existen o no han sido creadas ({})".format(len(invalid_keynames)))
                                     for i in range(len(invalid_keynames)):
                                         st.error("La capacitación {} no existe o no ha sido creada".format(invalid_keynames[i]))
 
                                 # Muestra advertencia si es que hay combinaciones usuario-capacitación que ya existen
                                 exists_usertraining = integrity.usertraining_exists()
                                 if exists_usertraining:
-                                    st.subheader("Error: Hay usuarios que ya tienen la capacitación asignada ({})".format(len(exists_usertraining)))
+                                    st.subheader("Error: Hay usuarios que ya poseen la capacitación que se busca asignar ({})".format(len(exists_usertraining)))
                                     for i in range(len(exists_usertraining)):
                                         st.error("El usuario {} ya tiene asociada la capacitación {}".format(exists_usertraining[i][0], exists_usertraining[i][1]))
 
@@ -256,12 +256,12 @@ def main():
                                             exists, not_exists = Batch(has_cap, df).batch_users()
                                             if exists:
                                                 exists_cap = list(df.loc[df['usuario'].isin(exists), ['usuario', '_cap']].itertuples(index=False, name=None))
-                                                print(exists_cap)
+                                                BasesUserCap().add_usertraining(input_tuple=exists_cap, tuples=True)
                                             if not_exists:
                                                 not_exists_login = list(df.loc[df['usuario'].isin(not_exists), ['usuario', 'password', 'nombre', 'apellido', 'email']].itertuples(index=False, name=None))
+                                                BasesUsuarios().add_batch_users(input_tuple=not_exists_login, created_at=datetime.now())
                                                 not_exists_cap = list(df.loc[df['usuario'].isin(not_exists), ['usuario', '_cap']].itertuples(index=False, name=None))
-                                                print(not_exists_login)
-                                                print(not_exists_cap)
+                                                BasesUserCap().add_usertraining(input_tuple=not_exists_cap, tuples=True)
 
             if admin_options == "Capacitaciones":
                 option = st.selectbox(
