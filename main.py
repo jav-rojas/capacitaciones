@@ -33,6 +33,8 @@ def main():
         password="",
         key=0,
         video_key=0,
+        update_video_key=0,
+        delete_video_key=0,
         cap_key=0,
         user_option=0)
     # Fin de bloques de sesión #
@@ -177,7 +179,6 @@ def main():
                     if uploaded_file is not None:
                         # Lee contenido del archivo, lo almacanea como StringIO. Genera un segundo objeto para ser utilizado posteriormente (una vez utilizado, desaparece)
                         uploaded_file_df = StringIO(uploaded_file.read())
-                        uploaded_file_data = StringIO(uploaded_file_df.getvalue())
 
                         if uploaded_file_df is not None:
                             df = pd.read_csv(uploaded_file_df, delimiter=';')
@@ -266,7 +267,7 @@ def main():
             if admin_options == "Capacitaciones":
                 option = st.selectbox(
                     'Seleccione una acción:',
-                    ('-- Acción --', 'Crear nueva Capacitación', 'Agregar o modificar video de Capacitación'), key=session_state.cap_key)
+                    ('-- Acción --', 'Crear nueva Capacitación', 'Agregar, modificar o eliminar video de Capacitación'), key=session_state.cap_key)
 
                 if option == "Crear nueva Capacitación":
                     st.header("Crear nueva Capacitación")
@@ -285,27 +286,23 @@ def main():
                     if st.button("Crear"):
                         BasesCap().add_cap_info(new_cap, new_cap_name, new_title, new_text_1, new_text_2, new_text_3, datetime.now())
                         st.success("La capacitación ha sido creada correctamente. Espere mientras es redirigido.")
-                        time.sleep(1.5)
+                        time.sleep(1)
                         session_state.cap_key += 1
                         rerun.rerun()
 
-                if option == "Agregar o modificar video de Capacitación":
-                    st.header("Agregar o modificar video de Capacitación")
+                if option == "Agregar, modificar o eliminar video de Capacitación":
+                    st.header("Agregar, modificar o eliminar video de Capacitación")
 
                     # Aquí lee los proyectos actuales en SQL
                     # Recupera el id y el nombre del proyecto (que será mostrado como opción)
                     vid_options, id_caps = BasesCap().retrieve_cap_info()
-                    vid_option = st.selectbox(
-                        'Seleccione un proyecto:',
-                        vid_options)
-                    print(vid_options)
-                    print(id_caps)
+                    vid_option = st.selectbox('Seleccione un proyecto:', vid_options)
+
                     for i in range(1, len(vid_options)):
                         if vid_option == vid_options[i]:
-                            print("vid option == " + str(vid_option))
                             # Se conecta a comprobar si hay videos existentes ya
                             # Recupera el número de videos para el id de capacitación seleccionado, el título de cada uno, y el link
-                            n_videos, titulos_videos, links = BasesCap().retrieve_video_info(id_caps[vid_options.index(vid_option)])
+                            n_videos, titulos_videos, links, orden = BasesCap().retrieve_video_info(id_caps[vid_options.index(vid_option)])
 
                             if len(n_videos):
                                 st.markdown(to_HTML().paragraph(
@@ -313,27 +310,23 @@ def main():
                                             unsafe_allow_html=True)
 
                                 for i in range(0, len(links)):
-                                    print(links)
                                     st.markdown(to_HTML().paragraph(
-                                        "___", [
-                                            ("{}".format(links[i]), "Video {} - {}".format(i + 1, titulos_videos[i]))], new_tab=True),
+                                        "___", [("{}".format(links[i]), "Video {} - {}".format(orden[i], titulos_videos[i]))], new_tab=True),
                                         unsafe_allow_html=True)
 
-                                accion_video = st.radio(
-                                    "Seleccione la acción que desea realizar:",
-                                    ('Modificar un video existente', 'Agregar nuevo video'),
-                                    key=session_state.video_key)
+                                acciones_video = ['-- Seleccione acción --', 'Agregar video', 'Modificar o actualizar video', 'Eliminar video']
+                                accion_video = st.selectbox(
+                                    "Seleccione la acción que desea realizar:", acciones_video, key=session_state.video_key, index=0)
 
-                                if accion_video == 'Modificar un video existente':
-                                    st.text("Aquí irán opciones")
-                                if accion_video == 'Agregar nuevo video':
+                                if accion_video == 'Agregar video':
+                                    st.subheader('Agregue un nuevo video:')
                                     id_cap = id_caps[vid_options.index(vid_option)]
                                     titulo_video = st.text_input("Título del video:")
                                     orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
-                                    link = st.text_input("Link del video*")
-                                    st.markdown(to_HTML().paragraph("(Opcional) Textos de explicación previo al video de la Capacitación."), unsafe_allow_html=True)
-                                    new_text_1 = st.text_area("Texto 1")
-                                    new_text_2 = st.text_area("Texto 2")
+                                    link = st.text_input("Link del video*:")
+                                    st.markdown(to_HTML().paragraph("(Opcional) Textos de explicación previo al video de la Capacitación:"), unsafe_allow_html=True)
+                                    new_text_1 = st.text_area("Texto 1:")
+                                    new_text_2 = st.text_area("Texto 2:")
                                     st.markdown(to_HTML().paragraph("*Para agregar un video de Youtube, se debe respetar el formato específico "
                                                                     "requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___",
                                                 links=[('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/', 'ingresando a este link')]),
@@ -342,10 +335,51 @@ def main():
                                     if st.button("Agregar"):
                                         BasesCap().add_video(id_cap, titulo_video, orden_video, link, new_text_1, new_text_2, datetime.now())
                                         st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
-                                        time.sleep(2)
+                                        time.sleep(1)
                                         session_state.video_key += 1
                                         rerun.rerun()
 
+                                if accion_video == 'Modificar o actualizar video':
+                                    opciones = ['-- Seleccione un video --'] + titulos_videos
+                                    modificar_video = st.selectbox("Seleccione el video a modificar o actualizar:", opciones, key=session_state.update_video_key, index=0)
+                                    for i in range(len(titulos_videos)):
+                                        if modificar_video == titulos_videos[i]:
+                                            video = BasesCap().retrieve_video(id=n_videos[i])
+                                            st.subheader('Modifique o actualice la información del video seleccionado:')
+                                            titulo_video = st.text_input("Título del video:", value='{}'.format(video[0] if video[0] is not None else ''))
+                                            orden_video = st.text_input("Número de video (determina el orden en que se mostrarán)*:", value='{}'.format(video[1] if video[1] is not None else ''))
+                                            link = st.text_input("Link del video**:", value='{}'.format(video[2] if video[2] is not None else ''))
+                                            text_1 = st.text_area("Texto 1:", value='{}'.format(video[3] if video[3] is not None else ''))
+                                            text_2 = st.text_area("Texto 2:", value='{}'.format(video[4] if video[4] is not None else ''))
+                                            st.markdown(to_HTML().paragraph(
+                                                "*Recuerde que el orden debe ser único. Si modifica este valor a uno ya existente, debe borrar "
+                                                "o actualizar el video afectado."),
+                                                unsafe_allow_html=True)
+                                            st.markdown(to_HTML().paragraph(
+                                                "**Para agregar un video de Youtube, se debe respetar el formato específico "
+                                                "requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___",
+                                                links=[('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/', 'ingresando a este link')]),
+                                                unsafe_allow_html=True)
+                                            if st.button("Actualizar"):
+                                                BasesCap().update_video(id=n_videos[i], title=titulo_video, link=link, orden=orden_video, text1=text_1, text2=text_2, updated_at=datetime.now())
+                                                st.success("El video ha sido modificado correctamente. Espere mientras es redirigido")
+                                                time.sleep(1)
+                                                session_state.update_video_key += 1
+                                                rerun.rerun()
+
+                                if accion_video == 'Eliminar video':
+                                    opciones = ['-- Seleccione un video --'] + titulos_videos
+                                    eliminar_video = st.selectbox("Seleccione el video a eliminar:", opciones, key=session_state.delete_video_key, index=0)
+                                    for i in range(len(titulos_videos)):
+                                        if eliminar_video == titulos_videos[i]:
+                                            st.subheader('¿Está seguro que desea eliminar el video?')
+                                            st.markdown(to_HTML().paragraph('Esta acción es permanente y no puede deshacerse. Para confirmar, presione el botón "Eliminar"'), unsafe_allow_html=True)
+                                            if st.button("Eliminar"):
+                                                BasesCap().delete_video(id=n_videos[i])
+                                                st.success("El video ha sido eliminado correctamente. Espere mientras es redirigido")
+                                                time.sleep(1)
+                                                session_state.delete_video_key += 1
+                                                rerun.rerun()
                             else:
                                 id_cap = id_caps[vid_options.index(vid_option)]
                                 titulo_video = st.text_input("Título del video:")
@@ -359,11 +393,11 @@ def main():
                                             links=[('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/', 'ingresando a este link')]),
                                             unsafe_allow_html=True)
 
-                            if st.button("Agregar"):
-                                BasesCap().add_video(id_cap, titulo_video, orden_video, link, new_text_1, new_text_2, datetime.now())
-                                st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
-                                time.sleep(2)
-                                rerun.rerun()
+                                if st.button("Agregar"):
+                                    BasesCap().add_video(id_cap, titulo_video, orden_video, link, new_text_1, new_text_2, datetime.now())
+                                    st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
+                                    time.sleep(1)
+                                    rerun.rerun()
         else:
             if (session_state.password != "" and not result):
                 st.sidebar.error('Usuario o contraseña incorrectos. Por favor intente nuevamente.')
