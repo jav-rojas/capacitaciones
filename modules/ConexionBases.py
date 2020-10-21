@@ -93,7 +93,7 @@ class BasesUsuarios(Conexion):
 
 class BasesCap(Conexion):
 
-    # Methods
+    # Insert Methods
     def add_cap_info(self, new_cap, new_cap_name, new_title, new_text_1, new_text_2, new_text_3, created_at):
         self.create_connection()
 
@@ -122,12 +122,37 @@ class BasesCap(Conexion):
                        'VALUES ("{}","{}","{}","{}",{},{},"{}","{}")'.format(id_cap, new_title, new_link, new_order, texts[0], texts[1], created_at, created_at))
         self.commit_close_connection()
 
-    def retrieve_all_cap(self):
+    # Update Methods
+    def update_video(self, id, title, link, orden, text1, text2, updated_at):
+        self.create_connection()
+        self.c.execute(
+            'UPDATE TrainingVideo '
+            'SET title = "{}", link = "{}", orden = "{}", text1 = {}, text2 = {}, updated_at = "{}" WHERE id = "{}"'.format(
+                title,
+                link,
+                orden,
+                "'{}'".format(text1) if text1 != '' else 'NULL',
+                "'{}'".format(text2) if text2 != '' else 'NULL',
+                updated_at,
+                id))
+        self.commit_close_connection()
+
+    # Select Methods
+    def retrieve_cap(self):
         self.create_connection()
         self.c.execute('SELECT * FROM Training')
         self.data = self.c.fetchall()
         self.commit_close_connection()
         return self.data
+
+    def retrieve_video(self, id):
+        self.create_connection()
+        self.c.execute('SELECT title, orden, link, text1, text2 FROM TrainingVideo WHERE id = "{}"'.format(id))
+        self.data = self.c.fetchall()
+        self.video = []
+        for i in range(len(self.data[0])):
+            self.video.append(self.data[0][i])
+        return self.video
 
     def retrieve_cap_info(self, key=False, elements=False):
         self.create_connection()
@@ -160,18 +185,27 @@ class BasesCap(Conexion):
 
     def retrieve_video_info(self, id_cap):
         self.create_connection()
-        self.c.execute('SELECT id, title, link FROM TrainingVideo WHERE training_id = "{}"'.format(id_cap))
+        self.c.execute('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id = "{}" ORDER BY orden ASC'.format(id_cap))
         self.data = self.c.fetchall()
         self.titulo_video = []
         self.links = []
         self.n_videos = []
+        self.orden = []
         for i in range(0, len(self.data)):
             self.n_videos.append(self.data[i][0])
         for i in range(0, len(self.data)):
             self.titulo_video.append(self.data[i][1])
         for i in range(0, len(self.data)):
             self.links.append(self.data[i][2])
-        return self.n_videos, self.titulo_video, self.links
+        for i in range(0, len(self.data)):
+            self.orden.append(self.data[i][3])
+        return self.n_videos, self.titulo_video, self.links, self.orden
+
+    # Delete Methods
+    def delete_video(self, id):
+        self.create_connection()
+        self.c.execute('DELETE FROM TrainingVideo WHERE id = "{}"'.format(id))
+        self.commit_close_connection()
 
 
 class BasesUserCap(Conexion):
