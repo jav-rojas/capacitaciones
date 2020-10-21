@@ -9,12 +9,12 @@ class IntegrityErrors():
 
     def repeated(self):
         if self.has_cap:
-            self.repeated = list(self.df.loc[:, ['usuario', '_cap']].itertuples(index=False, name=None))
-            self.repeated = list(set([x for x in self.repeated if self.repeated.count(x) > 1]))
+            self.repeated_list = list(self.df.loc[:, ['usuario', '_cap']].itertuples(index=False, name=None))
+            self.repeated_list = list(set([x for x in self.repeated_list if self.repeated_list.count(x) > 1]))
         else:
-            self.repeated = list(self.df.loc[:, ['usuario']].itertuples(index=False, name=None))
-            self.repeated = list(set([x for x in self.repeated if self.repeated.count(x) > 1]))
-        return self.repeated
+            self.repeated_list = list(self.df.loc[:, ['usuario']].itertuples(index=False, name=None))
+            self.repeated_list = list(set([x for x in self.repeated_list if self.repeated_list.count(x) > 1]))
+        return self.repeated_list
 
     def user_exists(self):
         if not self.has_cap:
