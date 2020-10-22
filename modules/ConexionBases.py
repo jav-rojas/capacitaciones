@@ -108,31 +108,62 @@ class BasesCap(Conexion):
                        'VALUES ("{}","{}","{}",{},{},{},"{}","{}")'.format(new_cap, new_cap_name, new_title, texts[0], texts[1], texts[2], created_at, created_at))
         self.commit_close_connection()
 
-    def add_video(self, id_cap, new_title, new_order, new_link, new_text_1, new_text_2, created_at):
+    def add_video(self, training_id, video_title, video_link, orden, video_text1, video_text2, video_created_at):
         self.create_connection()
 
         # Si el texto es vacío, debe ser NULL en SQL:
-        texts = [new_text_1, new_text_2]
+        texts = [video_text1, video_text2]
         for i in range(0, len(texts)):
             if texts[i] == "":
                 texts[i] = "NULL"
             else:
                 texts[i] = '"{}"'.format(texts[i])
         self.c.execute('INSERT INTO TrainingVideo (training_id,title,link,orden,text1,text2,created_at,updated_at) '
-                       'VALUES ("{}","{}","{}","{}",{},{},"{}","{}")'.format(id_cap, new_title, new_link, new_order, texts[0], texts[1], created_at, created_at))
+                       'VALUES ("{}","{}","{}","{}",{},{},"{}","{}")'.format(training_id, video_title, video_link, orden, texts[0], texts[1], video_created_at, video_created_at))
+        self.commit_close_connection()
+
+    def add_question(self, training_id=None, trainingvideo_id=None, question_type=None, question_title=None, question_choice1=False, question_choice2=False, question_choice3=False, question_choice4=False, created_at=None):
+        self.create_connection()
+        self.c.execute('INSERT INTO TrainingQuestion (training_id,trainingvideo_id,type,title,choice1,choice2,choice3,choice4,created_at,updated_at) '
+                       'VALUES ("{}","{}","{}","{}",{},{},{},{},"{}","{}")'.format(
+                           training_id,
+                           trainingvideo_id,
+                           question_type,
+                           question_title,
+                           "'{}'".format(question_choice1) if question_choice1 else 'NULL',
+                           "'{}'".format(question_choice2) if question_choice2 else 'NULL',
+                           "'{}'".format(question_choice3) if question_choice3 else 'NULL',
+                           "'{}'".format(question_choice4) if question_choice4 else 'NULL',
+                           created_at,
+                           created_at))
         self.commit_close_connection()
 
     # Update Methods
-    def update_video(self, id, title, link, orden, text1, text2, updated_at):
+    def update_video(self, id, video_title, video_link, orden, video_text1, video_text2, updated_at):
         self.create_connection()
         self.c.execute(
             'UPDATE TrainingVideo '
             'SET title = "{}", link = "{}", orden = "{}", text1 = {}, text2 = {}, updated_at = "{}" WHERE id = "{}"'.format(
-                title,
-                link,
+                video_title,
+                video_link,
                 orden,
-                "'{}'".format(text1) if text1 != '' else 'NULL',
-                "'{}'".format(text2) if text2 != '' else 'NULL',
+                "'{}'".format(video_text1) if video_text1 != '' else 'NULL',
+                "'{}'".format(video_text2) if video_text2 != '' else 'NULL',
+                updated_at,
+                id))
+        self.commit_close_connection()
+
+    def update_question(self, id, question_type, question_title, question_choice1=None, question_choice2=None, question_choice3=None, question_choice4=None, updated_at=None):
+        self.create_connection()
+        self.c.execute(
+            'UPDATE TrainingQuestion '
+            'SET type = "{}", title = "{}", choice1 = {}, choice2 = {}, choice3 = {}, choice4 = {}, updated_at = "{}" WHERE id = "{}"'.format(
+                question_type,
+                question_title,
+                "'{}'".format(question_choice1) if question_choice1 else 'NULL',
+                "'{}'".format(question_choice2) if question_choice2 else 'NULL',
+                "'{}'".format(question_choice3) if question_choice3 else 'NULL',
+                "'{}'".format(question_choice4) if question_choice4 else 'NULL',
                 updated_at,
                 id))
         self.commit_close_connection()
@@ -154,57 +185,97 @@ class BasesCap(Conexion):
             self.video.append(self.data[0][i])
         return self.video
 
-    def retrieve_cap_info(self, key=False, elements=False):
+    def retrieve_question(self, id):
         self.create_connection()
-        self.c.execute('SELECT {}, name FROM Training WHERE name != "default"'.format('key_name' if key else 'id'))
+        self.c.execute('SELECT type, title, choice1, choice2, choice3, choice4 FROM TrainingQuestion WHERE id = "{}"'.format(id))
         self.data = self.c.fetchall()
-        if not key:
-            self.options = ['-- Seleccione una capacitación --']
-            self.id_caps = [1]
-            for i in range(0, len(self.data)):
-                self.id_caps.append(self.data[i][0])
-            for i in range(0, len(self.data)):
-                self.options.append(self.data[i][1])
-            self.commit_close_connection()
-            return self.options, self.id_caps
-        else:
-            self.key_name = []
-            self.name = []
-            for i in range(0, len(self.data)):
-                self.key_name.append(self.data[i][0])
-            for i in range(0, len(self.data)):
-                self.name.append(self.data[i][1])
-            self.commit_close_connection()
-            self.elements = []
-            for i in range(0, len(self.data)):
-                self.elements.append('<strong>' + self.key_name[i] + '</strong>' + ' para ' + self.name[i])
-            if elements:
-                return self.elements
-            else:
-                return self.key_name, self.name
+        self.question = []
+        for i in range(len(self.data[0])):
+            self.question.append(self.data[0][i])
+        return self.question
 
-    def retrieve_video_info(self, id_cap):
+    def retrieve_cap_info(self, info=True, key=False, elements=False):
+        if info:
+            self.create_connection()
+            self.c.execute('SELECT id, key_name, name FROM Training WHERE id > 1')
+            self.data = self.c.fetchall()
+            self.training_ids = []
+            self.training_key_names = []
+            self.training_name = []
+            for i in range(len(self.data)):
+                self.training_ids.append(self.data[i][0])
+                self.training_key_names.append(self.data[i][1])
+                self.training_name.append(self.data[i][2])
+            return self.training_ids, self.training_key_names, self.training_name
+
+        else:
+            self.create_connection()
+            self.c.execute('SELECT {}, name FROM Training WHERE name != "default"'.format('key_name' if key else 'id'))
+            self.data = self.c.fetchall()
+            if not key:
+                self.options = ['-- Seleccione una capacitación --']
+                self.id_caps = [1]
+                for i in range(0, len(self.data)):
+                    self.id_caps.append(self.data[i][0])
+                for i in range(0, len(self.data)):
+                    self.options.append(self.data[i][1])
+                self.commit_close_connection()
+                return self.options, self.id_caps
+            else:
+                self.key_name = []
+                self.name = []
+                for i in range(0, len(self.data)):
+                    self.key_name.append(self.data[i][0])
+                for i in range(0, len(self.data)):
+                    self.name.append(self.data[i][1])
+                self.commit_close_connection()
+                self.elements = []
+                for i in range(0, len(self.data)):
+                    self.elements.append('<strong>' + self.key_name[i] + '</strong>' + ' para ' + self.name[i])
+                if elements:
+                    return self.elements
+                else:
+                    return self.key_name, self.name
+
+    def retrieve_video_info(self, training_id):
         self.create_connection()
-        self.c.execute('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id = "{}" ORDER BY orden ASC'.format(id_cap))
+        self.c.execute('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id = "{}" ORDER BY orden ASC'.format(training_id))
         self.data = self.c.fetchall()
-        self.titulo_video = []
-        self.links = []
-        self.n_videos = []
+        self.video_ids = []
+        self.video_titles = []
+        self.video_links = []
         self.orden = []
         for i in range(0, len(self.data)):
-            self.n_videos.append(self.data[i][0])
+            self.video_ids.append(self.data[i][0])
         for i in range(0, len(self.data)):
-            self.titulo_video.append(self.data[i][1])
+            self.video_titles.append(self.data[i][1])
         for i in range(0, len(self.data)):
-            self.links.append(self.data[i][2])
+            self.video_links.append(self.data[i][2])
         for i in range(0, len(self.data)):
             self.orden.append(self.data[i][3])
-        return self.n_videos, self.titulo_video, self.links, self.orden
+        return self.video_ids, self.video_titles, self.video_links, self.orden
+
+    def retrieve_question_info(self, training_id, trainingvideo_id):
+        self.create_connection()
+        self.c.execute('SELECT id, title FROM TrainingQuestion WHERE training_id = "{}" AND trainingvideo_id = "{}"'.format(training_id, trainingvideo_id))
+        self.data = self.c.fetchall()
+        self.question_ids = []
+        self.question_titles = []
+        for i in range(0, len(self.data)):
+            self.question_ids.append(self.data[i][0])
+        for i in range(0, len(self.data)):
+            self.question_titles.append(self.data[i][1])
+        return self.question_ids, self.question_titles
 
     # Delete Methods
     def delete_video(self, id):
         self.create_connection()
         self.c.execute('DELETE FROM TrainingVideo WHERE id = "{}"'.format(id))
+        self.commit_close_connection()
+
+    def delete_question(self, id):
+        self.create_connection()
+        self.c.execute('DELETE FROM TrainingQuestion WHERE id = "{}"'.format(id))
         self.commit_close_connection()
 
 
