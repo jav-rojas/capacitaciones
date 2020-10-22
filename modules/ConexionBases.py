@@ -94,51 +94,69 @@ class BasesUsuarios(Conexion):
 class BasesCap(Conexion):
 
     # Insert Methods
-    def add_cap_info(self, new_cap, new_cap_name, new_title, new_text_1, new_text_2, new_text_3, created_at):
+    def add_training(self, training_key_name, training_name, training_title, training_text1, training_text2, training_text3, created_at):
         self.create_connection()
-
-        # Si el texto es vacío, debe ser NULL en SQL:
-        texts = [new_text_1, new_text_2, new_text_3]
-        for i in range(0, len(texts)):
-            if texts[i] == "":
-                texts[i] = "NULL"
-            else:
-                texts[i] = '"{}"'.format(texts[i])
-        self.c.execute('INSERT INTO Training (key_name,name,title,text1,text2,text3,created_at,updated_at) '
-                       'VALUES ("{}","{}","{}",{},{},{},"{}","{}")'.format(new_cap, new_cap_name, new_title, texts[0], texts[1], texts[2], created_at, created_at))
+        self.c.execute(
+            'INSERT INTO Training (key_name,name,title,text1,text2,text3,created_at,updated_at) '
+            'VALUES ("{}","{}","{}",{},{},{},"{}","{}")'.format(
+                training_key_name,
+                training_name,
+                training_title,
+                "'{}'".format(training_text1) if training_text1 else 'NULL',
+                "'{}'".format(training_text2) if training_text2 else 'NULL',
+                "'{}'".format(training_text3) if training_text3 else 'NULL',
+                created_at,
+                created_at))
         self.commit_close_connection()
 
-    def add_video(self, training_id, video_title, video_link, orden, video_text1, video_text2, video_created_at):
+    def add_video(self, training_id, video_title, video_link, orden, video_text1, video_text2, created_at):
         self.create_connection()
-
-        # Si el texto es vacío, debe ser NULL en SQL:
-        texts = [video_text1, video_text2]
-        for i in range(0, len(texts)):
-            if texts[i] == "":
-                texts[i] = "NULL"
-            else:
-                texts[i] = '"{}"'.format(texts[i])
-        self.c.execute('INSERT INTO TrainingVideo (training_id,title,link,orden,text1,text2,created_at,updated_at) '
-                       'VALUES ("{}","{}","{}","{}",{},{},"{}","{}")'.format(training_id, video_title, video_link, orden, texts[0], texts[1], video_created_at, video_created_at))
+        self.c.execute(
+            'INSERT INTO TrainingVideo (training_id,title,link,orden,text1,text2,created_at,updated_at) '
+            'VALUES ("{}","{}","{}","{}",{},{},"{}","{}")'.format(
+                training_id,
+                video_title,
+                video_link,
+                orden,
+                "'{}'".format(video_text1) if video_text1 else 'NULL',
+                "'{}'".format(video_text2) if video_text2 else 'NULL',
+                created_at,
+                created_at))
         self.commit_close_connection()
 
     def add_question(self, training_id=None, trainingvideo_id=None, question_type=None, question_title=None, question_choice1=False, question_choice2=False, question_choice3=False, question_choice4=False, created_at=None):
         self.create_connection()
-        self.c.execute('INSERT INTO TrainingQuestion (training_id,trainingvideo_id,type,title,choice1,choice2,choice3,choice4,created_at,updated_at) '
-                       'VALUES ("{}","{}","{}","{}",{},{},{},{},"{}","{}")'.format(
-                           training_id,
-                           trainingvideo_id,
-                           question_type,
-                           question_title,
-                           "'{}'".format(question_choice1) if question_choice1 else 'NULL',
-                           "'{}'".format(question_choice2) if question_choice2 else 'NULL',
-                           "'{}'".format(question_choice3) if question_choice3 else 'NULL',
-                           "'{}'".format(question_choice4) if question_choice4 else 'NULL',
-                           created_at,
-                           created_at))
+        self.c.execute(
+            'INSERT INTO TrainingQuestion (training_id,trainingvideo_id,type,title,choice1,choice2,choice3,choice4,created_at,updated_at) '
+            'VALUES ("{}","{}","{}","{}",{},{},{},{},"{}","{}")'.format(
+                training_id,
+                trainingvideo_id,
+                question_type,
+                question_title,
+                "'{}'".format(question_choice1) if question_choice1 else 'NULL',
+                "'{}'".format(question_choice2) if question_choice2 else 'NULL',
+                "'{}'".format(question_choice3) if question_choice3 else 'NULL',
+                "'{}'".format(question_choice4) if question_choice4 else 'NULL',
+                created_at,
+                created_at))
         self.commit_close_connection()
 
     # Update Methods
+    def update_training(self, id, training_key_name, training_name, training_title, training_text1, training_text2, training_text3, updated_at):
+        self.create_connection()
+        self.c.execute(
+            'UPDATE Training '
+            'SET key_name = "{}", name = "{}", title = "{}", text1 = {}, text2 = {}, text3 = {}, updated_at = "{}" WHERE id = "{}"'.format(
+                training_key_name,
+                training_name,
+                training_title,
+                "'{}'".format(training_text1) if training_text1 != '' else 'NULL',
+                "'{}'".format(training_text2) if training_text2 != '' else 'NULL',
+                "'{}'".format(training_text3) if training_text3 != '' else 'NULL',
+                updated_at,
+                id))
+        self.commit_close_connection()
+
     def update_video(self, id, video_title, video_link, orden, video_text1, video_text2, updated_at):
         self.create_connection()
         self.c.execute(
@@ -169,12 +187,15 @@ class BasesCap(Conexion):
         self.commit_close_connection()
 
     # Select Methods
-    def retrieve_cap(self):
+    def retrieve_training(self, id):
         self.create_connection()
-        self.c.execute('SELECT * FROM Training')
+        self.c.execute('SELECT key_name, name, title, text1, text2, text3 FROM Training WHERE id = "{}"'.format(id))
         self.data = self.c.fetchall()
+        self.training = []
+        for i in range(len(self.data[0])):
+            self.training.append(self.data[0][i])
         self.commit_close_connection()
-        return self.data
+        return self.training
 
     def retrieve_video(self, id):
         self.create_connection()
@@ -194,7 +215,7 @@ class BasesCap(Conexion):
             self.question.append(self.data[0][i])
         return self.question
 
-    def retrieve_cap_info(self, info=True, key=False, elements=False):
+    def retrieve_training_info(self, info=False, key=False, elements=False):
         if info:
             self.create_connection()
             self.c.execute('SELECT id, key_name, name FROM Training WHERE id > 1')
@@ -268,6 +289,11 @@ class BasesCap(Conexion):
         return self.question_ids, self.question_titles
 
     # Delete Methods
+    def delete_training(self, id):
+        self.create_connection()
+        self.c.execute('DELETE FROM Training WHERE id = "{}"'.format(id))
+        self.commit_close_connection()
+
     def delete_video(self, id):
         self.create_connection()
         self.c.execute('DELETE FROM TrainingVideo WHERE id = "{}"'.format(id))
