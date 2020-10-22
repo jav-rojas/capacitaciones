@@ -35,6 +35,9 @@ def main():
         video_key=0,
         update_video_key=0,
         delete_video_key=0,
+        question_key=0,
+        update_question_key=0,
+        delete_question_key=0,
         cap_key=0,
         user_option=0)
     # Fin de bloques de sesión #
@@ -89,12 +92,12 @@ def main():
                     session_state.log_state = True
 
                 # Aquí debería acceder a SQL a buscar nombres de proyectos para capacitación
-                training_options, id_caps = BasesUserCap().retrieve_associated_trainings(username=session_state.username)
+                training_options, training_ids = BasesUserCap().retrieve_associated_trainings(username=session_state.username)
                 training_option = st.sidebar.selectbox('Seleccione un proyecto:', training_options)
                 for i in range(1, len(training_options)):
                     if training_option == training_options[i]:
                         st.text(training_option)
-                        st.text(id_caps[training_options.index(training_option)])
+                        st.text(training_ids[training_options.index(training_option)])
 
         elif result and session_state.username == "admin":
             cerrar_sesion = st.sidebar.button("Cerrar sesión")
@@ -267,60 +270,78 @@ def main():
             if admin_options == "Capacitaciones":
                 option = st.selectbox(
                     'Seleccione una acción:',
-                    ('-- Acción --', 'Crear nueva Capacitación', 'Agregar, modificar o eliminar video de Capacitación'), key=session_state.cap_key)
+                    ('-- Acción --', 'Agregar, modificar o eliminar Capacitación', 'Agregar, modificar o eliminar video de Capacitación', 'Agregar, modificar o eliminar cuestionario en video de Capacitación'),
+                    key=session_state.cap_key)
 
-                if option == "Crear nueva Capacitación":
-                    st.header("Crear nueva Capacitación")
-                    new_cap = st.text_input("Clave de proyecto", max_chars=15)
-                    new_cap_name = st.text_input("Nombre de proyecto", max_chars=50)
-                    st.markdown(to_HTML().paragraph("Este será el nombre con el que se desplegará el proyecto a los usuarios"), unsafe_allow_html=True)
-                    new_title = st.text_input("Título", max_chars=50)
-                    st.markdown(to_HTML().paragraph("Este será el título que se desplegará en la página de capacitación"), unsafe_allow_html=True)
-                    st.markdown(to_HTML().paragraph("(Opcional) Ingrese párrafos posteriores al título de la capacitación. "
-                                                    "Pueden ser una introducción al proyecto, una explicación de la capacitación, etc. "
-                                                    "No es necesario rellenar todos los campos."), unsafe_allow_html=True)
-                    new_text_1 = st.text_area("Texto 1")
-                    new_text_2 = st.text_area("Texto 2")
-                    new_text_3 = st.text_area("Texto 3")
+                if option == "Agregar, modificar o eliminar Capacitación":
+                    st.header("Agregar, modificar o eliminar Capacitación")
+                    training_ids, training_key_names, training_names = BasesCap().retrieve_cap_info(info=True)
 
-                    if st.button("Crear"):
-                        BasesCap().add_cap_info(new_cap, new_cap_name, new_title, new_text_1, new_text_2, new_text_3, datetime.now())
-                        st.success("La capacitación ha sido creada correctamente. Espere mientras es redirigido.")
-                        time.sleep(1)
-                        session_state.cap_key += 1
-                        rerun.rerun()
+                    if len(training_ids):
+                        training_actions = ['-- Seleccione acción --', 'Agregar Capacitación', 'Modificar o actualizar Capacitación', 'Eliminar Capacitación']
+                        training_action = st.selectbox(
+                            "Seleccione la acción que desea realizar:", training_actions, key=session_state.training_key, index=0)
+
+                        if training_action == 'Agregar Capacitación':
+                            st.write("Aquí ira opciones agregar cap")
+
+                        if training_action == 'Modificar o actualizar Capacitación':
+                            st.write("Aquí ira opciones de modificar")
+
+                        if training_action == 'Eliminar Capacitación':
+                            st.write("Aquí iran opciones de eliminar")
+
+                    else:
+                        new_cap = st.text_input("Clave de proyecto", max_chars=15)
+                        new_cap_name = st.text_input("Nombre de proyecto", max_chars=50)
+                        st.markdown(to_HTML().paragraph("Este será el nombre con el que se desplegará el proyecto a los usuarios"), unsafe_allow_html=True)
+                        new_title = st.text_input("Título", max_chars=50)
+                        st.markdown(to_HTML().paragraph("Este será el título que se desplegará en la página de capacitación"), unsafe_allow_html=True)
+                        st.markdown(to_HTML().paragraph("(Opcional) Ingrese párrafos posteriores al título de la capacitación. "
+                                                        "Pueden ser una introducción al proyecto, una explicación de la capacitación, etc. "
+                                                        "No es necesario rellenar todos los campos."), unsafe_allow_html=True)
+                        new_text_1 = st.text_area("Texto 1")
+                        new_text_2 = st.text_area("Texto 2")
+                        new_text_3 = st.text_area("Texto 3")
+
+                        if st.button("Crear"):
+                            BasesCap().add_cap_info(new_cap, new_cap_name, new_title, new_text_1, new_text_2, new_text_3, datetime.now())
+                            st.success("La capacitación ha sido creada correctamente. Espere mientras es redirigido.")
+                            time.sleep(1)
+                            session_state.cap_key += 1
+                            rerun.rerun()
 
                 if option == "Agregar, modificar o eliminar video de Capacitación":
                     st.header("Agregar, modificar o eliminar video de Capacitación")
 
                     # Aquí lee los proyectos actuales en SQL
                     # Recupera el id y el nombre del proyecto (que será mostrado como opción)
-                    vid_options, id_caps = BasesCap().retrieve_cap_info()
-                    vid_option = st.selectbox('Seleccione un proyecto:', vid_options)
+                    training_options, training_ids = BasesCap().retrieve_cap_info()
+                    training_option = st.selectbox('Seleccione un proyecto:', training_options)
 
-                    for i in range(1, len(vid_options)):
-                        if vid_option == vid_options[i]:
+                    for i in range(1, len(training_options)):
+                        if training_option == training_options[i]:
                             # Se conecta a comprobar si hay videos existentes ya
                             # Recupera el número de videos para el id de capacitación seleccionado, el título de cada uno, y el link
-                            n_videos, titulos_videos, links, orden = BasesCap().retrieve_video_info(id_caps[vid_options.index(vid_option)])
+                            video_ids, video_titles, video_links, orden = BasesCap().retrieve_video_info(training_ids[training_options.index(training_option)])
 
-                            if len(n_videos):
+                            if len(video_ids):
                                 st.markdown(to_HTML().paragraph(
-                                            "Actualmente hay {0} video{1}, cuyo{1} link{1} puede ver a continuación:".format(len(n_videos), 's' if len(n_videos) > 1 else '')),
+                                            "Actualmente hay {0} video{1}, cuyo{1} link{1} puede ver a continuación:".format(len(video_ids), 's' if len(video_ids) > 1 else '')),
                                             unsafe_allow_html=True)
 
-                                for i in range(0, len(links)):
+                                for i in range(0, len(video_links)):
                                     st.markdown(to_HTML().paragraph(
-                                        "___", [("{}".format(links[i]), "Video {} - {}".format(orden[i], titulos_videos[i]))], new_tab=True),
+                                        "___", [("{}".format(video_links[i]), "Video {} - {}".format(orden[i], video_titles[i]))], new_tab=True),
                                         unsafe_allow_html=True)
 
-                                acciones_video = ['-- Seleccione acción --', 'Agregar video', 'Modificar o actualizar video', 'Eliminar video']
-                                accion_video = st.selectbox(
-                                    "Seleccione la acción que desea realizar:", acciones_video, key=session_state.video_key, index=0)
+                                video_actions = ['-- Seleccione acción --', 'Agregar video', 'Modificar o actualizar video', 'Eliminar video']
+                                video_action = st.selectbox(
+                                    "Seleccione la acción que desea realizar:", video_actions, key=session_state.video_key, index=0)
 
-                                if accion_video == 'Agregar video':
+                                if video_action == 'Agregar video':
                                     st.subheader('Agregue un nuevo video:')
-                                    id_cap = id_caps[vid_options.index(vid_option)]
+                                    id_cap = training_ids[training_options.index(training_option)]
                                     titulo_video = st.text_input("Título del video:")
                                     orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
                                     link = st.text_input("Link del video*:")
@@ -339,12 +360,12 @@ def main():
                                         session_state.video_key += 1
                                         rerun.rerun()
 
-                                if accion_video == 'Modificar o actualizar video':
-                                    opciones = ['-- Seleccione un video --'] + titulos_videos
-                                    modificar_video = st.selectbox("Seleccione el video a modificar o actualizar:", opciones, key=session_state.update_video_key, index=0)
-                                    for i in range(len(titulos_videos)):
-                                        if modificar_video == titulos_videos[i]:
-                                            video = BasesCap().retrieve_video(id=n_videos[i])
+                                if video_action == 'Modificar o actualizar video':
+                                    video_options = ['-- Seleccione un video --'] + video_titles
+                                    video_option = st.selectbox("Seleccione el video a modificar o actualizar:", video_options, key=session_state.update_video_key, index=0)
+                                    for i in range(len(video_titles)):
+                                        if video_option == video_titles[i]:
+                                            video = BasesCap().retrieve_video(id=video_ids[i])
                                             st.subheader('Modifique o actualice la información del video seleccionado:')
                                             titulo_video = st.text_input("Título del video:", value='{}'.format(video[0] if video[0] is not None else ''))
                                             orden_video = st.text_input("Número de video (determina el orden en que se mostrarán)*:", value='{}'.format(video[1] if video[1] is not None else ''))
@@ -360,44 +381,215 @@ def main():
                                                 "requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___",
                                                 links=[('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/', 'ingresando a este link')]),
                                                 unsafe_allow_html=True)
-                                            if st.button("Actualizar"):
-                                                BasesCap().update_video(id=n_videos[i], title=titulo_video, link=link, orden=orden_video, text1=text_1, text2=text_2, updated_at=datetime.now())
+                                            if st.button("Modificar"):
+                                                BasesCap().update_video(id=video_ids[i], video_title=titulo_video, video_link=link, orden=orden_video, video_text1=text_1, video_text2=text_2, updated_at=datetime.now())
                                                 st.success("El video ha sido modificado correctamente. Espere mientras es redirigido")
                                                 time.sleep(1)
                                                 session_state.update_video_key += 1
                                                 rerun.rerun()
 
-                                if accion_video == 'Eliminar video':
-                                    opciones = ['-- Seleccione un video --'] + titulos_videos
-                                    eliminar_video = st.selectbox("Seleccione el video a eliminar:", opciones, key=session_state.delete_video_key, index=0)
-                                    for i in range(len(titulos_videos)):
-                                        if eliminar_video == titulos_videos[i]:
-                                            st.subheader('¿Está seguro que desea eliminar el video?')
+                                if video_action == 'Eliminar video':
+                                    video_options = ['-- Seleccione un video --'] + video_titles
+                                    video_option = st.selectbox("Seleccione el video a eliminar:", video_options, key=session_state.delete_video_key, index=0)
+                                    for i in range(len(video_titles)):
+                                        if video_option == video_titles[i]:
+                                            st.subheader('¿Está seguro que desea eliminar este video?')
                                             st.markdown(to_HTML().paragraph('Esta acción es permanente y no puede deshacerse. Para confirmar, presione el botón "Eliminar"'), unsafe_allow_html=True)
                                             if st.button("Eliminar"):
-                                                BasesCap().delete_video(id=n_videos[i])
+                                                BasesCap().delete_video(id=video_ids[i])
                                                 st.success("El video ha sido eliminado correctamente. Espere mientras es redirigido")
                                                 time.sleep(1)
                                                 session_state.delete_video_key += 1
                                                 rerun.rerun()
+
                             else:
-                                id_cap = id_caps[vid_options.index(vid_option)]
-                                titulo_video = st.text_input("Título del video:")
-                                link = st.text_input("Link del video*")
-                                orden_video = st.text_input("Número de video (determina el orden en que se mostrarán):")
+                                training_id = training_ids[training_options.index(training_option)]
+                                video_title = st.text_input("Título del video:")
+                                video_link = st.text_input("Link del video*")
+                                orden = st.text_input("Número de video (determina el orden en que se mostrarán):")
                                 st.markdown(to_HTML().paragraph("(Opcional) Textos de explicación previo al video de la Capacitación."), unsafe_allow_html=True)
-                                new_text_1 = st.text_area("Texto 1")
-                                new_text_2 = st.text_area("Texto 2")
+                                video_text1 = st.text_area("Texto 1")
+                                video_text2 = st.text_area("Texto 2")
                                 st.markdown(to_HTML().paragraph("*Para agregar un video de Youtube, se debe respetar el formato específico "
                                                                 "requerido para el link. Puedes averiguar más sobre cómo obtenerlo ___",
                                             links=[('https://help.glassdoor.com/article/Finding-the-embed-code-on-YouTube-or-Vimeo/en_US/', 'ingresando a este link')]),
                                             unsafe_allow_html=True)
 
                                 if st.button("Agregar"):
-                                    BasesCap().add_video(id_cap, titulo_video, orden_video, link, new_text_1, new_text_2, datetime.now())
+                                    BasesCap().add_video(training_id, video_title, orden, video_link, video_text1, video_text2, datetime.now())
                                     st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
                                     time.sleep(1)
                                     rerun.rerun()
+
+                if option == "Agregar, modificar o eliminar cuestionario en video de Capacitación":
+                    st.header("Agregar, modificar o eliminar cuestionario en video de Capacitación")
+
+                    # Recupera el id y el nombre del proyecto (que será mostrado como opción)
+                    training_options, training_ids = BasesCap().retrieve_cap_info()
+                    training_option = st.selectbox('Seleccione un proyecto:', training_options)
+                    for i in range(1, len(training_options)):
+                        if training_option == training_options[i]:
+                            video_ids, video_titles, video_links, orden = BasesCap().retrieve_video_info(training_ids[training_options.index(training_option)])
+                            if len(video_ids):
+                                video_options = ['-- Seleccione un video --'] + video_titles
+                                video_option = st.selectbox("Seleccione un video:", video_options, key=session_state.update_video_key, index=0)
+                                for i in range(len(video_titles)):
+                                    if video_option == video_titles[i]:
+                                        question_ids, question_titles = BasesCap().retrieve_question_info(
+                                            training_id=training_ids[training_options.index(training_option)],
+                                            trainingvideo_id=video_ids[i])
+
+                                        if len(question_ids):
+                                            question_actions = ['-- Seleccione acción --', 'Agregar pregunta', 'Modificar o actualizar pregunta', 'Eliminar pregunta']
+                                            question_action = st.selectbox(
+                                                "Seleccione la acción que desea realizar:", question_actions, key=session_state.question_key, index=0)
+
+                                            if question_action == 'Agregar pregunta':
+                                                st.subheader('Agregue una nueva pregunta:')
+                                                training_id = training_ids[training_options.index(training_option)]
+                                                trainingvideo_id = video_ids[i]
+                                                question_types = ['Texto', 'Selección única', 'Selección múltiple']
+                                                question_type = st.radio("Seleccione el tipo de pregunta:", question_types)
+
+                                                if question_type == 'Texto':
+                                                    question_title = st.text_input("Título o enunciado de la pregunta")
+
+                                                    if st.button("Agregar"):
+                                                        BasesCap().add_question(
+                                                            training_id=training_id,
+                                                            trainingvideo_id=trainingvideo_id,
+                                                            question_type=question_type,
+                                                            question_title=question_title,
+                                                            created_at=datetime.now())
+                                                        st.success("La pregunta ha sido agregado correctamente. Espere mientras es redirigido")
+                                                        time.sleep(1)
+                                                        session_state.question_key += 1
+                                                        rerun.rerun()
+
+                                                else:
+                                                    question_title = st.text_input("Título o enunciado de la pregunta")
+                                                    question_choice1 = st.text_input("Ingrese Alternativa 1:")
+                                                    question_choice2 = st.text_input("Ingrese Alternativa 2:")
+                                                    question_choice3 = st.text_input("(Opcional) Ingrese Alternativa 3:")
+                                                    question_choice4 = st.text_input("(Opcional) Ingrese Alternativa 4:")
+
+                                                    if st.button("Agregar"):
+                                                        if question_choice1 == '':
+                                                            st.error("Alternativa 1 no puede estar vacía.")
+                                                        if question_choice2 == '':
+                                                            st.error("Alternativa 2 no puede estar vacía")
+                                                        if question_choice1 != '' and question_choice2 != '':
+                                                            BasesCap().add_question(
+                                                                training_id, trainingvideo_id, question_type, question_title,
+                                                                question_choice1, question_choice2, question_choice3, question_choice4, datetime.now())
+                                                            st.success("La pregunta ha sido agregado correctamente. Espere mientras es redirigido")
+                                                            time.sleep(1)
+                                                            rerun.rerun()
+
+                                            if question_action == 'Modificar o actualizar pregunta':
+                                                question_options = ['-- Seleccione un video --'] + question_titles
+                                                question_option = st.selectbox("Seleccione la pregunta a modificar o actualizar:", question_options, key=session_state.update_question_key, index=0)
+
+                                                for i in range(len(question_titles)):
+                                                    if question_option == question_titles[i]:
+                                                        question = BasesCap().retrieve_question(id=question_ids[i])
+                                                        st.subheader('Modifique o actualice la información de la pregunta seleccionada:')
+                                                        question_types = ['Texto', 'Selección única', 'Selección múltiple']
+                                                        question_type = st.radio("Seleccione el tipo de pregunta:", question_types, index=question_types.index('{}'.format(question[0])))
+                                                        if question_type == 'Texto':
+                                                            question_title = st.text_input("Título o enunciado de la pregunta", value='{}'.format(question[1]))
+                                                            if st.button("Modificar"):
+                                                                BasesCap().update_question(
+                                                                    id=question_ids[i],
+                                                                    question_type=question_type,
+                                                                    question_title=question_title,
+                                                                    updated_at=datetime.now())
+                                                                st.success("La pregunta ha sido modificada correctamente. Espere mientras es redirigido")
+                                                                time.sleep(1)
+                                                                session_state.update_question_key += 1
+                                                                rerun.rerun()
+                                                        else:
+                                                            question_title = st.text_input("Título o enunciado de la pregunta", value='{}'.format(question[1]))
+                                                            question_choice1 = st.text_input("Ingrese Alternativa 1:", value='{}'.format(question[2] if question[2] is not None else ''))
+                                                            question_choice2 = st.text_input("Ingrese Alternativa 2:", value='{}'.format(question[3] if question[3] is not None else ''))
+                                                            question_choice3 = st.text_input("(Opcional) Ingrese Alternativa 3:", value='{}'.format(question[4] if question[4] is not None else ''))
+                                                            question_choice4 = st.text_input("(Opcional) Ingrese Alternativa 4:", value='{}'.format(question[5] if question[5] is not None else ''))
+
+                                                            if st.button("Modificar"):
+                                                                if question_choice1 == '':
+                                                                    st.error("Alternativa 1 no puede estar vacía.")
+                                                                if question_choice2 == '':
+                                                                    st.error("Alternativa 2 no puede estar vacía")
+                                                                if question_choice1 != '' and question_choice2 != '':
+                                                                    BasesCap().update_question(
+                                                                        id=question_ids[i],
+                                                                        question_type=question_type,
+                                                                        question_title=question_title,
+                                                                        question_choice1=question_choice1,
+                                                                        question_choice2=question_choice2,
+                                                                        question_choice3=question_choice3,
+                                                                        question_choice4=question_choice4,
+                                                                        updated_at=datetime.now())
+                                                                    st.success("La pregunta ha sido modificada correctamente. Espere mientras es redirigido")
+                                                                    time.sleep(1)
+                                                                    session_state.update_question_key += 1
+                                                                    rerun.rerun()
+
+                                            if question_action == 'Eliminar pregunta':
+                                                question_options = ['-- Seleccione una pregunta --'] + question_titles
+                                                question_option = st.selectbox("Seleccione la pregunta a eliminar:", question_options, key=session_state.delete_question_key, index=0)
+                                                for i in range(len(question_titles)):
+                                                    if question_option == question_titles[i]:
+                                                        st.subheader('¿Está seguro que desea eliminar esta pregunta?')
+                                                        st.markdown(to_HTML().paragraph('Esta acción es permanente y no puede deshacerse. Para confirmar, presione el botón "Eliminar"'), unsafe_allow_html=True)
+                                                        if st.button("Eliminar"):
+                                                            BasesCap().delete_question(id=question_ids[i])
+                                                            st.success("La pregunta ha sido eliminada correctamente. Espere mientras es redirigido")
+                                                            time.sleep(1)
+                                                            session_state.delete_video_key += 1
+                                                            rerun.rerun()
+
+                                        else:
+                                            training_id = training_ids[training_options.index(training_option)]
+                                            trainingvideo_id = video_ids[i]
+                                            question_types = ['Texto', 'Selección única', 'Selección múltiple']
+                                            question_type = st.radio("Seleccione el tipo de pregunta:", question_types)
+                                            if question_type == 'Texto':
+                                                question_title = st.text_input("Título o enunciado de la pregunta")
+
+                                                if st.button("Agregar"):
+                                                    BasesCap().add_question(
+                                                        training_id=training_id,
+                                                        trainingvideo_id=trainingvideo_id,
+                                                        question_type=question_type,
+                                                        question_title=question_title,
+                                                        created_at=datetime.now())
+                                                    st.success("La pregunta ha sido agregado correctamente. Espere mientras es redirigido")
+                                                    time.sleep(1)
+                                                    rerun.rerun()
+                                            else:
+                                                question_title = st.text_input("Título o enunciado de la pregunta")
+                                                question_choice1 = st.text_input("Ingrese Alternativa 1:")
+                                                question_choice2 = st.text_input("Ingrese Alternativa 2:")
+                                                question_choice3 = st.text_input("(Opcional) Ingrese Alternativa 3:")
+                                                question_choice4 = st.text_input("(Opcional) Ingrese Alternativa 4:")
+
+                                                if st.button("Agregar"):
+                                                    if question_choice1 == '':
+                                                        st.error("Alternativa 1 no puede estar vacía.")
+                                                    if question_choice2 == '':
+                                                        st.error("Alternativa 2 no puede estar vacía")
+                                                    if question_choice1 != '' and question_choice2 != '':
+                                                        BasesCap().add_question(
+                                                            training_id, trainingvideo_id, question_type, question_title,
+                                                            question_choice1, question_choice2, question_choice3, question_choice4, datetime.now())
+                                                        st.success("La pregunta ha sido agregado correctamente. Espere mientras es redirigido")
+                                                        time.sleep(1)
+                                                        rerun.rerun()
+
+                            else:
+                                st.warning("Para utilizar esta opción, debe agregar al menos un video a la Capacitación.")
+
         else:
             if (session_state.password != "" and not result):
                 st.sidebar.error('Usuario o contraseña incorrectos. Por favor intente nuevamente.')
