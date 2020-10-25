@@ -1,7 +1,6 @@
 import mysql.connector
 import numpy as np
-
-# Clases para BBDD:
+import pandas as pd
 
 
 class Conexion():
@@ -259,8 +258,15 @@ class BasesCap(Conexion):
                     return self.key_name, self.name
 
     def retrieve_video_info(self, training_id):
+        if type(training_id) is str or int:
+            training_id = '({})'.format(training_id)
+        elif type(training_id) is list:
+            training_id = str(tuple(training_id))
+        else:
+            print(type(training_id))
         self.create_connection()
-        self.c.execute('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id = "{}" ORDER BY orden ASC'.format(training_id))
+        print('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id in {} ORDER BY orden ASC'.format(training_id))
+        self.c.execute('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id in {} ORDER BY orden ASC'.format(training_id))
         self.data = self.c.fetchall()
         self.video_ids = []
         self.video_titles = []
@@ -287,6 +293,38 @@ class BasesCap(Conexion):
         for i in range(0, len(self.data)):
             self.question_titles.append(self.data[i][1])
         return self.question_ids, self.question_titles
+
+    def view_training_info(self):
+        self.create_connection()
+        self.df = pd.read_sql(
+            'SELECT key_name, name, title, text1, text2, text3, created_at, updated_at '
+            'FROM Training '
+            'WHERE id > 1 '
+            'ORDER BY id ASC',
+            con=self.db_connection)
+        return self.df
+
+    def view_video_info(self):
+        self.create_connection()
+        self.df = pd.read_sql(
+            'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.link, TrainingVideo.orden, TrainingVideo.text1, TrainingVideo.text2, TrainingVideo.created_at, TrainingVideo.updated_at '
+            'FROM Training '
+            'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
+            'ORDER BY Training.id, TrainingVideo.orden ASC',
+            con=self.db_connection)
+        return self.df
+
+    def view_question_info(self):
+        self.create_connection()
+        self.df = pd.read_sql(
+            'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.orden, TrainingQuestion.title, TrainingQuestion.type, '
+            'TrainingQuestion.choice1, TrainingQuestion.choice2, TrainingQuestion.choice3, TrainingQuestion.choice4, TrainingQuestion.created_at, TrainingQuestion.updated_at '
+            'FROM Training '
+            'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
+            'JOIN TrainingQuestion ON TrainingVideo.id = TrainingQuestion.trainingvideo_id '
+            'ORDER BY Training.id, TrainingVideo.orden, TrainingQuestion.id ASC',
+            con=self.db_connection)
+        return self.df
 
     # Delete Methods
     def delete_training(self, id):

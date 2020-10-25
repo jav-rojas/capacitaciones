@@ -272,8 +272,29 @@ def main():
             if admin_options == "Capacitaciones":
                 option = st.selectbox(
                     'Seleccione una acción:',
-                    ('-- Acción --', 'Agregar, modificar o eliminar Capacitación', 'Agregar, modificar o eliminar video de Capacitación', 'Agregar, modificar o eliminar cuestionario en video de Capacitación'),
+                    ('-- Acción --', 'Overview', 'Agregar, modificar o eliminar Capacitación', 'Agregar, modificar o eliminar video de Capacitación', 'Agregar, modificar o eliminar pregunta en video de Capacitación'),
                     key=session_state.training_key)
+
+                if option == "Overview":
+                    st.header("Overview")
+
+                    # Filtro para capacitaciones
+                    training_ids, training_key_names, training_names = BasesCap().retrieve_training_info(info=True)
+                    training_option = st.multiselect("Filtro de Capacitación:", options=training_key_names, default=training_key_names)
+                    print(str(tuple(training_option)))  # -> ['TS4', 'EOD_DIC']
+
+                    # Filtro para videos
+                    video_ids, video_titles, video_links, orden = BasesCap().retrieve_video_info(training_ids[training_options.index(training_option)])
+                    if len(video_ids):
+                        video_options = ['-- Seleccione un video --'] + video_titles
+                        video_option = st.selectbox("Seleccione un video:", video_options, key=session_state.update_video_key, index=0)
+
+                    st.subheader("Información de Capacitaciones:")
+                    st.write(BasesCap().view_training_info())
+                    st.subheader("Información de Videos")
+                    st.write(BasesCap().view_video_info())
+                    st.subheader("Información de Preguntas")
+                    st.write(BasesCap().view_question_info())
 
                 if option == "Agregar, modificar o eliminar Capacitación":
                     st.header("Agregar, modificar o eliminar Capacitación")
@@ -484,7 +505,7 @@ def main():
                                             unsafe_allow_html=True)
 
                                 if st.button("Agregar"):
-                                    BasesCap().add_video(training_id, video_title, video_link, order, video_text1, video_text2, datetime.now())
+                                    BasesCap().add_video(training_id, video_title, video_link, orden, video_text1, video_text2, datetime.now())
                                     st.success("El video ha sido agregado correctamente. Espere mientras es redirigido")
                                     time.sleep(1)
                                     rerun.rerun()
@@ -552,6 +573,7 @@ def main():
                                                                 question_choice1, question_choice2, question_choice3, question_choice4, datetime.now())
                                                             st.success("La pregunta ha sido agregado correctamente. Espere mientras es redirigido")
                                                             time.sleep(1)
+                                                            session_state.question_key += 1
                                                             rerun.rerun()
 
                                             if question_action == 'Modificar o actualizar pregunta':
