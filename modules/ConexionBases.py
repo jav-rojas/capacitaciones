@@ -92,6 +92,18 @@ class BasesUsuarios(Conexion):
 
 class BasesCap(Conexion):
 
+    # Internal Methods
+    def parse_ids(self, ids):
+        if isinstance(ids, list) and len(ids) == 1:
+            ids = '({})'.format(ids[0])
+        elif isinstance(ids, list) and len(ids) > 1:
+            ids = str(tuple(ids))
+        elif isinstance(ids, (str, int)):
+            ids = '({})'.format(ids)
+        else:
+            print(type(ids))
+        return ids
+
     # Insert Methods
     def add_training(self, training_key_name, training_name, training_title, training_text1, training_text2, training_text3, created_at):
         self.create_connection()
@@ -258,15 +270,10 @@ class BasesCap(Conexion):
                     return self.key_name, self.name
 
     def retrieve_video_info(self, training_id):
-        if type(training_id) is str or int:
-            training_id = '({})'.format(training_id)
-        elif type(training_id) is list:
-            training_id = str(tuple(training_id))
-        else:
-            print(type(training_id))
+        self.training_id = self.parse_ids(training_id)
         self.create_connection()
-        print('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id in {} ORDER BY orden ASC'.format(training_id))
-        self.c.execute('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id in {} ORDER BY orden ASC'.format(training_id))
+        print('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id in {} ORDER BY orden ASC'.format(self.training_id))
+        self.c.execute('SELECT id, title, link, orden FROM TrainingVideo WHERE training_id in {} ORDER BY orden ASC'.format(self.training_id))
         self.data = self.c.fetchall()
         self.video_ids = []
         self.video_titles = []
@@ -283,8 +290,10 @@ class BasesCap(Conexion):
         return self.video_ids, self.video_titles, self.video_links, self.orden
 
     def retrieve_question_info(self, training_id, trainingvideo_id):
+        self.training_id = self.parse_ids(training_id)
+        self.trainingvideo_id = self.parse_ids(trainingvideo_id)
         self.create_connection()
-        self.c.execute('SELECT id, title FROM TrainingQuestion WHERE training_id = "{}" AND trainingvideo_id = "{}"'.format(training_id, trainingvideo_id))
+        self.c.execute('SELECT id, title FROM TrainingQuestion WHERE training_id in {} AND trainingvideo_id in {}'.format(self.training_id, self.trainingvideo_id))
         self.data = self.c.fetchall()
         self.question_ids = []
         self.question_titles = []
@@ -294,27 +303,34 @@ class BasesCap(Conexion):
             self.question_titles.append(self.data[i][1])
         return self.question_ids, self.question_titles
 
-    def view_training_info(self):
+    def view_training_info(self, id):
+        self.id = self.parse_ids(id)
         self.create_connection()
         self.df = pd.read_sql(
             'SELECT key_name, name, title, text1, text2, text3, created_at, updated_at '
             'FROM Training '
-            'WHERE id > 1 '
-            'ORDER BY id ASC',
+            'WHERE id in {} '
+            'ORDER BY id ASC'.format(self.id),
             con=self.db_connection)
         return self.df
 
-    def view_video_info(self):
+    def view_video_info(self, training_id, id):
+        self.training_id = self.parse_ids(training_id)
+        self.id = self.parse_ids(id)
         self.create_connection()
         self.df = pd.read_sql(
             'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.link, TrainingVideo.orden, TrainingVideo.text1, TrainingVideo.text2, TrainingVideo.created_at, TrainingVideo.updated_at '
             'FROM Training '
             'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
-            'ORDER BY Training.id, TrainingVideo.orden ASC',
+            'WHERE TrainingVideo.training_id in {} and TrainingVideo.id in {} '
+            'ORDER BY Training.id, TrainingVideo.orden ASC'.format(self.training_id, self.id),
             con=self.db_connection)
         return self.df
 
-    def view_question_info(self):
+    def view_question_info(self, training_id, trainingvideo_id, id):
+        self.training_id = self.parse_ids(training_id)
+        self.trainingvideo_id = self.parse_ids(trainingvideo_id)
+        self.id = self.parse_ids(id)
         self.create_connection()
         self.df = pd.read_sql(
             'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.orden, TrainingQuestion.title, TrainingQuestion.type, '
@@ -322,7 +338,8 @@ class BasesCap(Conexion):
             'FROM Training '
             'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
             'JOIN TrainingQuestion ON TrainingVideo.id = TrainingQuestion.trainingvideo_id '
-            'ORDER BY Training.id, TrainingVideo.orden, TrainingQuestion.id ASC',
+            'WHERE TrainingQuestion.training_id in {} and TrainingQuestion.trainingvideo_id in {} and TrainingQuestion.id in {} '
+            'ORDER BY Training.id, TrainingVideo.orden, TrainingQuestion.id ASC'.format(self.training_id, self.trainingvideo_id, self.id),
             con=self.db_connection)
         return self.df
 
