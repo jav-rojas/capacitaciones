@@ -278,23 +278,44 @@ def main():
                 if option == "Overview":
                     st.header("Overview")
 
-                    # Filtro para capacitaciones
+                    # Filtro para capacitaciones:
                     training_ids, training_key_names, training_names = BasesCap().retrieve_training_info(info=True)
-                    training_option = st.multiselect("Filtro de Capacitación:", options=training_key_names, default=training_key_names)
-                    print(str(tuple(training_option)))  # -> ['TS4', 'EOD_DIC']
+                    if len(training_ids):
+                        training_option = st.multiselect("Filtro de Capacitación:", options=training_key_names, default=training_key_names)
 
-                    # Filtro para videos
-                    video_ids, video_titles, video_links, orden = BasesCap().retrieve_video_info(training_ids[training_options.index(training_option)])
-                    if len(video_ids):
-                        video_options = ['-- Seleccione un video --'] + video_titles
-                        video_option = st.selectbox("Seleccione un video:", video_options, key=session_state.update_video_key, index=0)
+                        # Si hay uno o más seleccionados
+                        if len(training_option):
+                            training_id = list(map(training_ids.__getitem__, [training_key_names.index(training_option[i]) for i in range(len(training_option))]))
+                            # Mostramos dataframe con información de Capacitación(es) seleccionada(s)
+                            st.write(BasesCap().view_training_info(id=training_id))
 
-                    st.subheader("Información de Capacitaciones:")
-                    st.write(BasesCap().view_training_info())
-                    st.subheader("Información de Videos")
-                    st.write(BasesCap().view_video_info())
-                    st.subheader("Información de Preguntas")
-                    st.write(BasesCap().view_question_info())
+                            # Filtro para videos:
+                            video_ids, video_titles, video_links, orden = BasesCap().retrieve_video_info(training_id=training_id)
+                            if len(video_ids):
+                                video_option = st.multiselect("Filtro de video:", video_titles)
+
+                                # Si hay uno o más seleccionados
+                                if len(video_option):
+                                    trainingvideo_id = list(map(video_ids.__getitem__, [video_titles.index(video_option[i]) for i in range(len(video_option))]))
+                                    # Mostramos dataframe con información de video(s) seleccionado(s)
+                                    st.write(BasesCap().view_video_info(training_id=training_id, id=trainingvideo_id))
+
+                                    # Filtro para preguntas:
+                                    question_ids, question_titles = BasesCap().retrieve_question_info(training_id=training_id, trainingvideo_id=trainingvideo_id)
+                                    if len(question_ids):
+                                        question_option = st.multiselect("Filtro de pregunta:", question_titles)
+
+                                        # Si hay uno o más seleccionados
+                                        if len(question_option):
+                                            trainingquestion_id = list(map(question_ids.__getitem__, [question_titles.index(question_option[i]) for i in range(len(question_option))]))
+                                            st.write(BasesCap().view_question_info(training_id=training_id, trainingvideo_id=trainingvideo_id, id=trainingquestion_id))
+                                else:
+                                    pass
+                        else:
+                            pass
+
+                    else:
+                        st.write("Actualmente no hay Capacitaciones que mostrar")
 
                 if option == "Agregar, modificar o eliminar Capacitación":
                     st.header("Agregar, modificar o eliminar Capacitación")
