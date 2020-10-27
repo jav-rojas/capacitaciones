@@ -53,7 +53,7 @@ class IntegrityErrors():
 
     def invalid_keyname(self):
         if self.has_cap:
-            self.key_name, self.name = BasesCap().retrieve_cap_info(key=True)
+            self.key_name, self.name = BasesCap().retrieve_training_info(key=True)
             self.csv_key_names = set(self.df['_cap'].values.tolist())
             self.invalid_keynames = list(self.csv_key_names - set(self.key_name))
             self.invalid_keynames = [i for i in self.invalid_keynames if i]
