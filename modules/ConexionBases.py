@@ -59,8 +59,14 @@ class BasesUsuarios(Conexion):
 
     def add_batch_users(self, input_tuple=None, created_at=None):
         for i in range(len(input_tuple)):
-            self.add_user_login(username=input_tuple[i][0], password=input_tuple[i][1], created_at=created_at)
-            self.add_user_info(username=input_tuple[i][0], new_nombre=input_tuple[i][2], new_apellido=input_tuple[i][3], new_email=input_tuple[i][4], new_updated_at=created_at)
+            self.create_connection()
+            self.c.execute('SELECT * FROM Username WHERE username = "{}"'.format(input_tuple[i][0]))
+            self.data = self.c.fetchall()
+            if not self.data:
+                self.add_user_login(username=input_tuple[i][0], password=input_tuple[i][1], created_at=created_at)
+                self.add_user_info(username=input_tuple[i][0], new_nombre=input_tuple[i][2], new_apellido=input_tuple[i][3], new_email=input_tuple[i][4], new_updated_at=created_at)
+            else:
+                pass
 
     def act_last_access(self, username, new_updated_at):
         self.create_connection()
@@ -303,45 +309,92 @@ class BasesCap(Conexion):
             self.question_titles.append(self.data[i][1])
         return self.question_ids, self.question_titles
 
-    def view_training_info(self, id):
-        self.id = self.parse_ids(id)
-        self.create_connection()
-        self.df = pd.read_sql(
-            'SELECT key_name, name, title, text1, text2, text3, created_at, updated_at '
-            'FROM Training '
-            'WHERE id in {} '
-            'ORDER BY id ASC'.format(self.id),
-            con=self.db_connection)
-        return self.df
-
-    def view_video_info(self, training_id, id):
+    def retrieve_all_info(self, training_id):
         self.training_id = self.parse_ids(training_id)
-        self.id = self.parse_ids(id)
         self.create_connection()
-        self.df = pd.read_sql(
-            'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.link, TrainingVideo.orden, TrainingVideo.text1, TrainingVideo.text2, TrainingVideo.created_at, TrainingVideo.updated_at '
-            'FROM Training '
-            'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
-            'WHERE TrainingVideo.training_id in {} and TrainingVideo.id in {} '
-            'ORDER BY Training.id, TrainingVideo.orden ASC'.format(self.training_id, self.id),
-            con=self.db_connection)
-        return self.df
-
-    def view_question_info(self, training_id, trainingvideo_id, id):
-        self.training_id = self.parse_ids(training_id)
-        self.trainingvideo_id = self.parse_ids(trainingvideo_id)
-        self.id = self.parse_ids(id)
-        self.create_connection()
-        self.df = pd.read_sql(
-            'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.orden, TrainingQuestion.title, TrainingQuestion.type, '
-            'TrainingQuestion.choice1, TrainingQuestion.choice2, TrainingQuestion.choice3, TrainingQuestion.choice4, TrainingQuestion.created_at, TrainingQuestion.updated_at '
+        self.c.execute(
+            'SELECT '
+            'Training.title, Training.text1, Training.text2, Training.text3, '
+            'TrainingVideo.title, TrainingVideo.link, TrainingVideo.orden, TrainingVideo.text1, TrainingVideo.text2, '
+            'TrainingQuestion.type, TrainingQuestion.title, TrainingQuestion.choice1, TrainingQuestion.choice2, TrainingQuestion.choice3, TrainingQuestion.choice4 '
             'FROM Training '
             'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
             'JOIN TrainingQuestion ON TrainingVideo.id = TrainingQuestion.trainingvideo_id '
-            'WHERE TrainingQuestion.training_id in {} and TrainingQuestion.trainingvideo_id in {} and TrainingQuestion.id in {} '
-            'ORDER BY Training.id, TrainingVideo.orden, TrainingQuestion.id ASC'.format(self.training_id, self.trainingvideo_id, self.id),
-            con=self.db_connection)
-        return self.df
+            'WHERE TrainingQuestion.training_id in {} '
+            'ORDER BY TrainingVideo.orden, TrainingQuestion.id ASC'.format(self.training_id))
+        self.data = self.c.fetchall()
+        return self.data
+
+    def view_training_info(self, id, admin_view=True):
+        self.id = self.parse_ids(id)
+        self.create_connection()
+        if admin_view:
+            self.df = pd.read_sql(
+                'SELECT key_name, name, title, text1, text2, text3, created_at, updated_at '
+                'FROM Training '
+                'WHERE id in {} '
+                'ORDER BY id ASC'.format(self.id),
+                con=self.db_connection)
+            return self.df
+        else:
+            self.c.execute(
+                'SELECT '
+                'Training.title, Training.text1, Training.text2, Training.text3 '
+                'FROM Training '
+                'WHERE id in {}'.format(self.id))
+            self.data = self.c.fetchall()
+            return self.data[0]
+
+    def view_video_info(self, training_id, id=[], admin_view=True):
+        self.training_id = self.parse_ids(training_id)
+        self.id = self.parse_ids(id)
+        self.create_connection()
+        if admin_view:
+            self.df = pd.read_sql(
+                'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.link, TrainingVideo.orden, TrainingVideo.text1, TrainingVideo.text2, TrainingVideo.created_at, TrainingVideo.updated_at '
+                'FROM Training '
+                'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
+                'WHERE TrainingVideo.training_id in {} and TrainingVideo.id in {} '
+                'ORDER BY Training.id, TrainingVideo.orden ASC'.format(self.training_id, self.id),
+                con=self.db_connection)
+            return self.df
+        else:
+            self.c.execute(
+                'SELECT TrainingVideo.title, TrainingVideo.link, TrainingVideo.orden, TrainingVideo.text1, TrainingVideo.text2 '
+                'FROM Training '
+                'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
+                'WHERE TrainingVideo.training_id IN {} AND TrainingVideo.id IN {}'
+                'ORDER BY TrainingVideo.orden ASC'.format(self.training_id, self.id))
+            self.data = self.c.fetchall()
+            return self.data[0]
+
+    def view_question_info(self, training_id, trainingvideo_id, id=[], admin_view=True):
+        self.training_id = self.parse_ids(training_id)
+        self.trainingvideo_id = self.parse_ids(trainingvideo_id)
+        self.create_connection()
+        if admin_view:
+            self.id = self.parse_ids(id)
+            self.df = pd.read_sql(
+                'SELECT Training.key_name, Training.name, TrainingVideo.title, TrainingVideo.orden, TrainingQuestion.title, TrainingQuestion.type, '
+                'TrainingQuestion.choice1, TrainingQuestion.choice2, TrainingQuestion.choice3, TrainingQuestion.choice4, TrainingQuestion.created_at, TrainingQuestion.updated_at '
+                'FROM Training '
+                'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
+                'JOIN TrainingQuestion ON TrainingVideo.id = TrainingQuestion.trainingvideo_id '
+                'WHERE TrainingQuestion.training_id in {} and TrainingQuestion.trainingvideo_id in {} and TrainingQuestion.id in {} '
+                'ORDER BY Training.id, TrainingVideo.orden, TrainingQuestion.id ASC'.format(self.training_id, self.trainingvideo_id, self.id),
+                con=self.db_connection)
+            return self.df
+        else:
+            self.c.execute(
+                'SELECT '
+                'TrainingQuestion.type, TrainingQuestion.title, TrainingQuestion.choice1, TrainingQuestion.choice2, TrainingQuestion.choice3, TrainingQuestion.choice4 '
+                'FROM Training '
+                'JOIN TrainingVideo ON Training.id = TrainingVideo.training_id '
+                'JOIN TrainingQuestion ON TrainingVideo.id = TrainingQuestion.trainingvideo_id '
+                'WHERE TrainingQuestion.training_id IN {} AND TrainingQuestion.trainingvideo_id in {} '
+                'ORDER BY TrainingQuestion.id ASC'.format(self.training_id, self.trainingvideo_id))
+            self.data = self.c.fetchall()
+            return self.data
 
     # Delete Methods
     def delete_training(self, id):
