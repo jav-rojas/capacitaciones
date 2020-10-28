@@ -98,8 +98,46 @@ def main():
                 training_option = st.sidebar.selectbox('Seleccione un proyecto:', training_options)
                 for i in range(1, len(training_options)):
                     if training_option == training_options[i]:
-                        st.text(training_option)
-                        st.text(training_ids[training_options.index(training_option)])
+                        training_id = training_options.index(training_option) + 1
+                        # data = BasesCap().retrieve_all_info(training_id=training_options.index(training_option) + 1)
+                        training_info = BasesCap().view_training_info(id=training_id, admin_view=False)
+                        st.title(training_info[0])
+                        for i in range(1, 3):
+                            if training_info[i]:
+                                st.markdown(to_HTML().paragraph(text=training_info[i]), unsafe_allow_html=True)
+
+                        video_ids, video_titles, video_links, orden = BasesCap().retrieve_video_info(training_id=training_id)
+
+                        if len(video_ids):
+                            video_option = st.selectbox("Seleccione un video:", video_titles)
+                            for i in range(len(video_titles)):
+                                if video_option == video_titles[i]:
+                                    trainingvideo_id = video_ids[i]
+                                    video_info = BasesCap().view_video_info(training_id=training_id, id=trainingvideo_id, admin_view=False)
+                                    st.header(video_info[0])
+                                    for i in range(3, 4):
+                                        if video_info[i]:
+                                            st.markdown(to_HTML().paragraph(text=video_info[i]), unsafe_allow_html=True)
+                                    st.markdown(to_HTML().video(link=video_info[1]), unsafe_allow_html=True)
+                                    st.subheader("Preguntas")
+                                    st.markdown(to_HTML().paragraph(text='Por favor responda las siguientes preguntas'), unsafe_allow_html=True)
+                                    question_info = BasesCap().view_question_info(training_id=training_id, trainingvideo_id=trainingvideo_id, admin_view=False)
+                                    for i in range(len(question_info)):
+                                        if question_info[i][0] == 'Texto':
+                                            answer = st.text_area(question_info[i][1], key=i)
+                                        elif question_info[i][0] == 'Selección única':
+                                            choices = []
+                                            for j in range(2, 5):
+                                                if question_info[i][j]:
+                                                    choices.append(question_info[i][j])
+                                            st.radio(question_info[i][1], choices, key=i)
+                                        else:
+                                            choices = []
+                                            for j in range(2, 5):
+                                                if question_info[i][j]:
+                                                    choices.append(question_info[i][j])
+                                            st.checkbox(question_info[i][1], choices, key=i)
+                                        print(answer)
 
         elif result and session_state.username == "admin":
             cerrar_sesion = st.sidebar.button("Cerrar sesión")
@@ -146,6 +184,10 @@ def main():
                     username_info = BasesUsuarios().view_all_users_info()
                     info2 = pd.DataFrame(username_info, columns=["Username", "Nombre", "Apellido", "Email", "Fecha de creación", "Última fecha de conexión"])
                     st.dataframe(info2)
+                    st.markdown(to_HTML().paragraph("Esta es la información actual de cada usuario en la tabla UsernameTraining en MySQL"), unsafe_allow_html=True)
+                    usertraining_info = BasesUserCap().retrieve_usertraining_info()
+                    info3 = pd.DataFrame(usertraining_info, columns=["Username", "Capacitación"])
+                    st.dataframe(info3)
 
                 if option == "Cargar usuarios por lote":
                     st.header("Carga de usuarios por lote")
