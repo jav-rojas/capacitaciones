@@ -114,30 +114,47 @@ def main():
                                 if video_option == video_titles[i]:
                                     trainingvideo_id = video_ids[i]
                                     video_info = BasesCap().view_video_info(training_id=training_id, id=trainingvideo_id, admin_view=False)
-                                    st.header(video_info[0])
-                                    for i in range(3, 4):
-                                        if video_info[i]:
-                                            st.markdown(to_HTML().paragraph(text=video_info[i]), unsafe_allow_html=True)
+
+                                    # Información de video
+                                    video_title = video_info[0]
+                                    video_link = video_info[1]
+                                    video_texts = [video_info[3], video_info[4]]
+
+                                    # Título del video
+                                    st.header(video_title)
+
+                                    # Textos del video
+                                    for i in range(len(video_texts)):
+                                        if video_texts[i]:
+                                            st.markdown(to_HTML().paragraph(text=video_texts[i]), unsafe_allow_html=True)
+
+                                    # Link del video
                                     st.markdown(to_HTML().video(link=video_info[1]), unsafe_allow_html=True)
+
+                                    # Preguntas/cuestionario del video
                                     st.subheader("Preguntas")
                                     st.markdown(to_HTML().paragraph(text='Por favor responda las siguientes preguntas'), unsafe_allow_html=True)
                                     question_info = BasesCap().view_question_info(training_id=training_id, trainingvideo_id=trainingvideo_id, admin_view=False)
+
+                                    answer = {}
                                     for i in range(len(question_info)):
                                         if question_info[i][0] == 'Texto':
-                                            answer = st.text_area(question_info[i][1], key=i)
+                                            answer[i] = st.text_area(question_info[i][1], key=i)
                                         elif question_info[i][0] == 'Selección única':
                                             choices = []
                                             for j in range(2, 5):
                                                 if question_info[i][j]:
                                                     choices.append(question_info[i][j])
-                                            st.radio(question_info[i][1], choices, key=i)
+                                            answer[i] = st.radio(question_info[i][1], choices, key=i)
                                         else:
                                             choices = []
                                             for j in range(2, 5):
                                                 if question_info[i][j]:
                                                     choices.append(question_info[i][j])
-                                            st.checkbox(question_info[i][1], choices, key=i)
-                                        print(answer)
+                                            answer[i] = st.checkbox(question_info[i][1], choices, key=i)
+                                    st.write(answer)
+                                    st.write(username)
+                                    st.write(session_state.username)
 
         elif result and session_state.username == "admin":
             cerrar_sesion = st.sidebar.button("Cerrar sesión")
