@@ -101,6 +101,23 @@ KEY `fkIdx_68` (`trainingvideo_id`, `training_id`),
 CONSTRAINT `FK_68` FOREIGN KEY `fkIdx_68` (`trainingvideo_id`, `training_id`) REFERENCES `TrainingVideo` (`id`, `training_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=INNODB;
 
+-- ************************************** `UsernameQuestion`
+
+CREATE TABLE `UsernameQuestion`
+(
+ `id`               integer NOT NULL ,
+ `username_id`      integer NOT NULL ,
+ `question_id`      integer NOT NULL ,
+ `trainingvideo_id` integer NOT NULL ,
+ `training_id`      integer NOT NULL ,
+ `answer`           text NOT NULL ,
+
+PRIMARY KEY (`id`, `username_id`, `question_id`),
+KEY `fkIdx_103` (`username_id`),
+CONSTRAINT `FK_103` FOREIGN KEY `fkIdx_103` (`username_id`) REFERENCES `Username` (`id`),
+KEY `fkIdx_106` (`question_id`, `training_id`, `trainingvideo_id`),
+CONSTRAINT `FK_106` FOREIGN KEY `fkIdx_106` (`question_id`, `training_id`, `trainingvideo_id`) REFERENCES `TrainingQuestion` (`id`, `training_id`, `trainingvideo_id`)
+) ENGINE=INNODB;
 
 -- Ingresamos valores iniciales
 

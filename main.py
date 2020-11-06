@@ -16,6 +16,7 @@ from modules.batch_upload import IntegrityErrors, Batch
 
 
 def main():
+
     st.beta_set_page_config(
         page_title="Capacitaciones CMD",
         page_icon="https://pbs.twimg.com/profile_images/1161359420967784449/Hsgy0Zv2.jpg",
@@ -23,6 +24,9 @@ def main():
         initial_sidebar_state='auto')
 
     st.set_option('deprecation.showfileUploaderEncoding', False)
+
+    with open("main.css") as f:
+        st.markdown(f"""<style>{f.read()}</style>""", unsafe_allow_html=True)
 
     # Bloques de sesión #
     session_state = EstadoSesion.get(
@@ -132,8 +136,10 @@ def main():
                                     st.markdown(to_HTML().video(link=video_info[1]), unsafe_allow_html=True)
 
                                     # Preguntas/cuestionario del video
-                                    st.subheader("Preguntas")
-                                    st.markdown(to_HTML().paragraph(text='Por favor responda las siguientes preguntas'), unsafe_allow_html=True)
+                                    st.subheader("Cuestionario")
+                                    st.markdown(to_HTML().paragraph(
+                                        text='Una vez haya visto el video por completo, por favor responda las siguientes preguntas:'
+                                    ), unsafe_allow_html=True)
                                     question_info = BasesCap().view_question_info(training_id=training_id, trainingvideo_id=trainingvideo_id, admin_view=False)
 
                                     answer = {}
@@ -141,7 +147,7 @@ def main():
                                         if question_info[i][0] == 'Texto':
                                             answer[i] = st.text_area(question_info[i][1], key=i)
                                         elif question_info[i][0] == 'Selección única':
-                                            choices = []
+                                            choices = ['-']
                                             for j in range(2, 5):
                                                 if question_info[i][j]:
                                                     choices.append(question_info[i][j])
@@ -151,10 +157,9 @@ def main():
                                             for j in range(2, 5):
                                                 if question_info[i][j]:
                                                     choices.append(question_info[i][j])
-                                            answer[i] = st.checkbox(question_info[i][1], choices, key=i)
-                                    st.write(answer)
-                                    st.write(username)
-                                    st.write(session_state.username)
+                                            answer[i] = st.multiselect(question_info[i][1], choices, key=i)
+                                    if st.button('Enviar respuestas'):
+                                        st.success('Sus respuestas han sido guardadas correctamente')
 
         elif result and session_state.username == "admin":
             cerrar_sesion = st.sidebar.button("Cerrar sesión")
@@ -617,7 +622,7 @@ def main():
                                                 st.subheader('Agregue una nueva pregunta:')
                                                 training_id = training_ids[training_options.index(training_option)]
                                                 trainingvideo_id = video_ids[i]
-                                                question_types = ['Texto', 'Selección única', 'Selección múltiple']
+                                                question_types = ['-', 'Texto', 'Selección única', 'Selección múltiple']
                                                 question_type = st.radio("Seleccione el tipo de pregunta:", question_types)
 
                                                 if question_type == 'Texto':
@@ -635,7 +640,7 @@ def main():
                                                         session_state.question_key += 1
                                                         rerun.rerun()
 
-                                                else:
+                                                elif question_type == 'Selección única' or question_type == 'Selección múltiple':
                                                     question_title = st.text_input("Título o enunciado de la pregunta")
                                                     question_choice1 = st.text_input("Ingrese Alternativa 1:")
                                                     question_choice2 = st.text_input("Ingrese Alternativa 2:")
@@ -664,7 +669,7 @@ def main():
                                                     if question_option == question_titles[i]:
                                                         question = BasesCap().retrieve_question(id=question_ids[i])
                                                         st.subheader('Modifique o actualice la información de la pregunta seleccionada:')
-                                                        question_types = ['Texto', 'Selección única', 'Selección múltiple']
+                                                        question_types = ['-', 'Texto', 'Selección única', 'Selección múltiple']
                                                         question_type = st.radio("Seleccione el tipo de pregunta:", question_types, index=question_types.index('{}'.format(question[0])))
                                                         if question_type == 'Texto':
                                                             question_title = st.text_input("Título o enunciado de la pregunta", value='{}'.format(question[1]))
@@ -737,7 +742,7 @@ def main():
                                                     st.success("La pregunta ha sido agregado correctamente. Espere mientras es redirigido")
                                                     time.sleep(1)
                                                     rerun.rerun()
-                                            else:
+                                            elif question == 'Selección única' or question == 'Selección múltiple':
                                                 question_title = st.text_input("Título o enunciado de la pregunta")
                                                 question_choice1 = st.text_input("Ingrese Alternativa 1:")
                                                 question_choice2 = st.text_input("Ingrese Alternativa 2:")
