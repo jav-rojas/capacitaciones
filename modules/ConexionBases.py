@@ -1,7 +1,11 @@
 import mysql.connector
 import numpy as np
 import pandas as pd
+import config
 
+credentials = config.credentials()
+password = credentials.password
+user = credentials.user
 
 class Conexion():
 
@@ -12,7 +16,7 @@ class Conexion():
     # database = "capacitaciones"
 
     # Constructor
-    def __init__(self, host="localhost", user="capacitaciones", passwd="Microdatos2020.", database="capacitaciones"):
+    def __init__(self, host="localhost", user=user, passwd=password, database="capacitaciones"):
         self.host = host
         self.user = user
         self.passwd = passwd
