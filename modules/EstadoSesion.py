@@ -14,7 +14,6 @@ class SessionState(object):
 
 
 def get(**kwargs):
-    # Hack to get the session object from Streamlit.
 
     ctx = ReportThread.get_report_ctx()
 
@@ -43,10 +42,7 @@ def get(**kwargs):
 
     if this_session is None:
         raise RuntimeError(
-            "Oh noes. Couldn't get your Streamlit Session object. "
-            'Are you doing something fancy with threads?')
-
-    # Got the session object! Now let's attach some state into it.
+            'No se pudo recuperar la sesión de Streamlit. ¿Estás haciendo algo con threads?')
 
     if not hasattr(this_session, '_custom_session_state'):
         this_session._custom_session_state = SessionState(**kwargs)
